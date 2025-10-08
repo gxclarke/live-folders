@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ProviderStatus } from "@/services/provider-registry";
 import { ProviderRegistry } from "@/services/provider-registry";
+import { StorageManager } from "@/services/storage";
 import { Logger } from "@/utils/logger";
 
 const logger = new Logger("useProviders");
@@ -43,31 +44,24 @@ export function useProviders(): UseProvidersResult {
 				const registry = ProviderRegistry.getInstance();
 				await registry.initialize();
 
+				// Get storage manager for provider data
+				const storage = StorageManager.getInstance();
+				const providersData = await storage.getProviders();
+
 				const allProviders = registry.getAllProviders();
 				const providerInfos: ProviderInfo[] = [];
 
 				for (const provider of allProviders) {
 					const status = registry.getProviderStatus(provider.metadata.id);
+					const providerData = providersData[provider.metadata.id];
 
 					if (status) {
-						let itemCount: number | undefined;
-
-						// Fetch item count if authenticated and enabled
-						if (status.authenticated && status.enabled) {
-							try {
-								const items = await registry.fetchProviderItems(provider.metadata.id);
-								itemCount = items.length;
-							} catch (err) {
-								logger.error(`Failed to fetch items for ${provider.metadata.id}`, err);
-							}
-						}
-
 						providerInfos.push({
 							id: provider.metadata.id,
 							name: provider.metadata.name,
 							status,
-							itemCount,
-							lastSync: status.lastSync,
+							itemCount: undefined, // Will be populated during sync
+							lastSync: providerData?.lastSync,
 							error: status.lastError,
 						});
 					}
@@ -75,7 +69,7 @@ export function useProviders(): UseProvidersResult {
 
 				setProviders(providerInfos);
 			} catch (err) {
-				logger.error("useProviders", "Failed to initialize providers", err);
+				logger.error("Failed to initialize providers", err as Error);
 				setError(err instanceof Error ? err.message : "Failed to load providers");
 			} finally {
 				setLoading(false);
@@ -85,81 +79,91 @@ export function useProviders(): UseProvidersResult {
 		initializeProviders();
 	}, []);
 
-	// Sync all providers
+	// Sync all providers via background scheduler
 	const syncAll = async () => {
 		try {
 			setError(null);
-			const registry = ProviderRegistry.getInstance();
+			logger.info("Requesting sync for all providers");
 
-			logger.info("useProviders", "Syncing all providers");
+			// Send message to background service worker
+			const response = await chrome.runtime.sendMessage({ type: "SYNC_ALL" });
 
-			const allItems = await registry.fetchAllProviderItems();
+			if (!response.success) {
+				throw new Error(response.error || "Sync failed");
+			}
 
-			logger.info("useProviders", `Synced ${allItems.length} items from all providers`);
+			logger.info("All providers synced successfully");
 
 			// Refresh provider status after sync
-			const updatedProviders = providers.map((provider) => {
-				const status = registry.getProviderStatus(provider.id);
-				return {
-					...provider,
-					status: status || provider.status,
-					lastSync: status?.lastSync,
-					error: status?.lastError,
-				};
-			});
-
-			setProviders(updatedProviders);
+			await refreshProviderStatus();
 		} catch (err) {
-			logger.error("useProviders", "Failed to sync all providers", err);
+			logger.error("Failed to sync all providers", err as Error);
 			setError(err instanceof Error ? err.message : "Failed to sync providers");
 		}
 	};
 
-	// Sync single provider
+	// Sync single provider via background scheduler
 	const syncProvider = async (providerId: string) => {
 		try {
 			setError(null);
+			logger.info(`Requesting sync for provider: ${providerId}`);
+
+			// Send message to background service worker
+			const response = await chrome.runtime.sendMessage({
+				type: "SYNC_PROVIDER",
+				providerId,
+			});
+
+			if (!response.success) {
+				throw new Error(response.error || "Sync failed");
+			}
+
+			logger.info(`Provider ${providerId} synced successfully`);
+
+			// Refresh provider status
+			await refreshProviderStatus();
+		} catch (err) {
+			logger.error(`Failed to sync provider ${providerId}`, err as Error);
+			setError(err instanceof Error ? err.message : "Failed to sync provider");
+		}
+	};
+
+	// Refresh provider status from storage
+	const refreshProviderStatus = async () => {
+		try {
+			const storage = StorageManager.getInstance();
+			const providersData = await storage.getProviders();
 			const registry = ProviderRegistry.getInstance();
 
-			logger.info("useProviders", `Syncing provider: ${providerId}`);
-
-			const items = await registry.fetchProviderItems(providerId);
-
-			logger.info("useProviders", `Synced ${items.length} items from ${providerId}`);
-
-			// Update provider status
-			const status = registry.getProviderStatus(providerId);
 			setProviders((prev) =>
-				prev.map((p) =>
-					p.id === providerId
-						? {
-								...p,
-								status: status || p.status,
-								itemCount: items.length,
-								lastSync: status?.lastSync,
-								error: status?.lastError,
-							}
-						: p,
-				),
+				prev.map((provider) => {
+					const status = registry.getProviderStatus(provider.id);
+					const providerData = providersData[provider.id];
+
+					return {
+						...provider,
+						status: status || provider.status,
+						lastSync: providerData?.lastSync,
+						error: status?.lastError,
+					};
+				}),
 			);
 		} catch (err) {
-			logger.error(`Failed to sync provider ${providerId}`, err);
-			setError(err instanceof Error ? err.message : "Failed to sync provider");
+			logger.error("Failed to refresh provider status", err as Error);
 		}
 	};
 
 	// Open sidepanel settings
 	const openSettings = async () => {
-		// Open sidepanel using chrome.sidePanel API
 		try {
-			const windowId = (await chrome.windows.getCurrent()).id;
-			if (windowId && chrome.sidePanel) {
-				await chrome.sidePanel.open({ windowId });
+			const window = await chrome.windows.getCurrent();
+			if (window.id && chrome.sidePanel) {
+				await chrome.sidePanel.open({ windowId: window.id });
 			} else {
 				logger.warn("Side panel API not available");
 			}
 		} catch (err) {
-			logger.error("Failed to open sidepanel", err);
+			logger.error("Failed to open sidepanel", err as Error);
 		}
 	};
 

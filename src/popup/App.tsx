@@ -1,22 +1,70 @@
-import crxLogo from "@/assets/crx.svg";
-import reactLogo from "@/assets/react.svg";
-import viteLogo from "@/assets/vite.svg";
-import HelloWorld from "@/components/HelloWorld";
+import {
+	Alert,
+	Box,
+	CircularProgress,
+	CssBaseline,
+	ThemeProvider,
+	useMediaQuery,
+} from "@mui/material";
+import { useMemo } from "react";
+import { createAppTheme } from "@/theme";
+import { Header } from "./components/Header";
+import { ProviderList } from "./components/ProviderList";
+import { QuickActions } from "./components/QuickActions";
+import { useProviders } from "./hooks/useProviders";
 import "./App.css";
 
 export default function App() {
+	// Detect system color scheme preference
+	const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
+	const theme = useMemo(
+		() => createAppTheme(prefersDarkMode ? "dark" : "light"),
+		[prefersDarkMode],
+	);
+
+	const { providers, loading, error, syncAll, syncProvider, openSettings } = useProviders();
+
 	return (
-		<div>
-			<a href="https://vite.dev" target="_blank" rel="noreferrer">
-				<img src={viteLogo} className="logo" alt="Vite logo" />
-			</a>
-			<a href="https://reactjs.org/" target="_blank" rel="noreferrer">
-				<img src={reactLogo} className="logo react" alt="React logo" />
-			</a>
-			<a href="https://crxjs.dev/vite-plugin" target="_blank" rel="noreferrer">
-				<img src={crxLogo} className="logo crx" alt="crx logo" />
-			</a>
-			<HelloWorld msg="Vite + React + CRXJS" />
-		</div>
+		<ThemeProvider theme={theme}>
+			<CssBaseline />
+			<Box
+				sx={{
+					width: 400,
+					minHeight: 300,
+					maxHeight: 600,
+					display: "flex",
+					flexDirection: "column",
+				}}
+			>
+				<Header onSettingsClick={openSettings} />
+
+				{loading && (
+					<Box
+						sx={{
+							display: "flex",
+							justifyContent: "center",
+							alignItems: "center",
+							flex: 1,
+							py: 4,
+						}}
+					>
+						<CircularProgress />
+					</Box>
+				)}
+
+				{error && (
+					<Box sx={{ p: 2 }}>
+						<Alert severity="error">{error}</Alert>
+					</Box>
+				)}
+
+				{!loading && !error && (
+					<>
+						<ProviderList providers={providers} onSync={syncProvider} />
+						<QuickActions onSyncAll={syncAll} onOpenSettings={openSettings} />
+					</>
+				)}
+			</Box>
+		</ThemeProvider>
 	);
 }
