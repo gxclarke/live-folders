@@ -230,21 +230,23 @@ export function ProvidersView() {
 			const providerData = await storage.getProvider("github");
 
 			if (!providerData) {
-				throw new Error("GitHub provider not found");
+				// Provider not found - this shouldn't happen if ProviderRegistry initialized properly
+				setError(
+					"GitHub provider not initialized. Please reload the extension and try again.",
+				);
+				return;
 			}
 
-			// Save PAT to provider config
-			providerData.config = {
-				...providerData.config,
-				personalAccessToken: githubPAT,
-			} as typeof providerData.config & { personalAccessToken: string };
+			// Add PAT to config using any to bypass type checking for custom fields
+			// biome-ignore lint/suspicious/noExplicitAny: Provider-specific config fields
+			(providerData.config as any).personalAccessToken = githubPAT;
 
 			await storage.saveProvider("github", providerData);
 
 			logger.info("GitHub PAT saved successfully");
 			setGithubPAT(""); // Clear input after saving
 
-			// Show success message
+			// Show success message (could be improved with a success Alert)
 			setError(null);
 		} catch (err) {
 			logger.error("Failed to save GitHub PAT", err as Error);

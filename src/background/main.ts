@@ -5,6 +5,7 @@
  * Handles extension lifecycle events and initializes background services.
  */
 
+import { ProviderRegistry } from "../services/provider-registry";
 import { Logger } from "../utils/logger";
 import { BackgroundScheduler } from "./scheduler";
 
@@ -16,6 +17,10 @@ const logger = new Logger("Background");
 async function initializeBackgroundServices(): Promise<void> {
 	try {
 		logger.info("Initializing background services");
+
+		// Initialize provider registry first (registers and initializes all providers)
+		const registry = ProviderRegistry.getInstance();
+		await registry.initialize();
 
 		// Initialize scheduler
 		const scheduler = BackgroundScheduler.getInstance();

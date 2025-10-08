@@ -219,8 +219,7 @@ export class GitHubProvider implements Provider {
 				user: authState.user,
 			};
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "PAT authentication failed";
+			const errorMessage = error instanceof Error ? error.message : "PAT authentication failed";
 			this.logger.error("PAT authentication failed", { errorMessage });
 			return {
 				success: false,
