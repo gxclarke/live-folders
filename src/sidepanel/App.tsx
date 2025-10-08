@@ -2,6 +2,7 @@ import {
 	Box,
 	Container,
 	CssBaseline,
+	Fade,
 	Tab,
 	Tabs,
 	ThemeProvider,
@@ -64,7 +65,7 @@ export default function App() {
 							overflow: "auto",
 						}}
 					>
-						{currentTab === 0 && (
+						<Fade in={currentTab === 0} timeout={300} unmountOnExit>
 							<Box
 								role="tabpanel"
 								id={`${tabIdBase}-panel-0`}
@@ -72,8 +73,8 @@ export default function App() {
 							>
 								<ProvidersView />
 							</Box>
-						)}
-						{currentTab === 1 && (
+						</Fade>
+						<Fade in={currentTab === 1} timeout={300} unmountOnExit>
 							<Box
 								role="tabpanel"
 								id={`${tabIdBase}-panel-1`}
@@ -81,8 +82,8 @@ export default function App() {
 							>
 								<ItemsView />
 							</Box>
-						)}
-						{currentTab === 2 && (
+						</Fade>
+						<Fade in={currentTab === 2} timeout={300} unmountOnExit>
 							<Box
 								role="tabpanel"
 								id={`${tabIdBase}-panel-2`}
@@ -90,7 +91,7 @@ export default function App() {
 							>
 								<SettingsView />
 							</Box>
-						)}
+						</Fade>
 					</Container>
 				</Box>
 			</ErrorBoundary>
