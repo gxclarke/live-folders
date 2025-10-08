@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { useId, useMemo, useState } from "react";
 import { createAppTheme } from "@/theme";
+import { ItemsView } from "./views/ItemsView";
 import { ProvidersView } from "./views/ProvidersView";
 import { SettingsView } from "./views/SettingsView";
 import "./App.css";
@@ -65,7 +66,7 @@ export default function App() {
 					)}
 					{currentTab === 1 && (
 						<Box role="tabpanel" id={`${tabIdBase}-panel-1`} aria-labelledby={`${tabIdBase}-tab-1`}>
-							<p>Items View - Coming Soon</p>
+							<ItemsView />
 						</Box>
 					)}
 					{currentTab === 2 && (
