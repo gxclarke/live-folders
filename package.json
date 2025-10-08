@@ -10,6 +10,7 @@
 		"build:firefox": "npm run build && web-ext build --source-dir=dist --artifacts-dir=artifacts --overwrite-dest",
 		"build:chrome": "npm run build",
 		"preview": "vite preview",
+		"typecheck": "tsc -b --noEmit",
 		"lint": "biome check src",
 		"lint:fix": "biome check --write src",
 		"format": "biome format --write src",
