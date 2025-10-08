@@ -69,69 +69,58 @@
 4. ⚠️ **Never retry creating the same file multiple times** without a restart
 5. ✅ After restart, create_file should work on first attempt
 
-## Project Context - Phase 2 Status
+## Project Context - Current Status (Oct 7, 2025)
 
-### What's Been Completed (Phase 1):
+### What's Been Completed:
+
+**Phase 1 (Complete):**
 - ✅ Project setup with Vite + React + TypeScript
 - ✅ Core type definitions (auth.ts, provider.ts, bookmark.ts, storage.ts)
 - ✅ Storage Manager implementation
 - ✅ Logger utility system
 - ✅ Browser API utilities
 
-### Current Phase (Phase 2 - Authentication System):
-- 🔄 **IN PROGRESS**: Auth Manager Core (`src/services/auth-manager.ts`)
-- ❌ **BLOCKED**: File corruption issues preventing completion
-- 📋 **NEXT**: GitHub OAuth Integration (`src/providers/github/auth.ts`)
-- 📋 **NEXT**: Jira OAuth Integration (`src/providers/jira/auth.ts`)
+**Phase 2.1 (Complete - Committed):**
+- ✅ Auth Manager Core (`src/services/auth-manager.ts`) - 600 lines
+- ✅ OAuth 2.0 flow handling via `browser.identity.launchWebAuthFlow()`
+- ✅ Token management with automatic refresh (5 min before expiry)
+- ✅ Provider registration system with custom refresh callbacks
+- ✅ Event system for auth state changes (4 events)
+- ✅ CSRF protection using crypto.getRandomValues()
+- ✅ 11 public methods, 14 private methods
+- ✅ Commit: b39ee9e
 
-### Phase 2 Requirements:
-1. Complete AuthManager class with:
-   - OAuth 2.0 flow handling
-   - Token management and refresh
-   - Provider registration system
-   - Event system for auth state changes
+**Phase 2.2 (Complete - Committed):**
+- ✅ GitHub Provider (`src/providers/github/github-provider.ts`) - 365 lines
+- ✅ OAuth 2.0 integration via AuthManager delegation
+- ✅ GitHub API user info fetching
+- ✅ PR search (authored + review-requested) with deduplication
+- ✅ Scopes: `repo`, `read:user`, `read:org`
+- ✅ 7 public methods implementing Provider interface
+- ✅ 5 private helper methods for GitHub API
+- ✅ 3 TypeScript interfaces for API responses
+- ✅ Commit: 3850c97
 
-2. GitHub provider implementation:
-   - OAuth configuration for GitHub API
-   - Scopes: `repo`, `read:user`, `read:org`
-   - API endpoints for PR fetching
+### Current Phase (Phase 2.3 - NEXT):
+- 📋 **TODO**: Jira OAuth Integration (`src/providers/jira/jira-provider.ts`)
+- 📋 Support multiple auth types: OAuth 2.0, API tokens, basic auth
+- 📋 Handle Jira Cloud vs Jira Server differences
+- 📋 Fetch assigned issues and recent activity
+- 📋 Convert Jira issues to BookmarkItem format
 
-3. Jira provider implementation:
-   - Support OAuth 2.0, API tokens, and basic auth
+### Phase 2.3 Requirements:
+1. JiraProvider class implementing Provider interface:
+   - Support OAuth 2.0 (Jira Cloud)
+   - Support API tokens (Jira Cloud)
+   - Support basic auth (Jira Server)
+   - Detect Jira Cloud vs Server
+   - Handle different API endpoints
+
+2. Jira API integration:
    - Handle Jira Cloud vs Server differences
    - API endpoints for issue fetching
 
-## Recovery Steps After VS Code Restart
-
-**Context:** File corruption issue with `auth-manager.ts` has been blocking Phase 2.1 completion.
-
-**What to do immediately after restart:**
-
-1. **Verify clean state:**
-   ```bash
-   git status  # Should show only .github/ as untracked
-   ls src/services/auth-manager.ts  # Should NOT exist
-   ```
-
-2. **Create auth-manager.ts on FIRST attempt:**
-   - Use `create_file` tool with complete implementation
-   - DO NOT create placeholder first - go straight to full code
-   - File should be ~550 lines (see implementation details below)
-
-3. **If corruption occurs again:**
-   - STOP immediately
-   - Tell user to restart VS Code again
-   - DO NOT retry without restart
-
-4. **Success criteria:**
-   - File has ~550 lines of clean TypeScript
-   - No compile errors
-   - Biome linting passes
-   - Exports `AuthManager` class and `authManager` singleton
-
-**After successful creation, proceed to:**
-- Phase 2.2: GitHub OAuth Integration
-- Phase 2.3: Jira OAuth Integration
+---
 
 ## Key Architecture Notes
 
@@ -172,33 +161,83 @@ export class AuthManager {
 ```
 
 **Key Patterns:**
-- **Singleton pattern** for AuthManager
+- **Singleton pattern** for AuthManager and all services
 - **Provider registration system** for extensibility
 - **Event-driven architecture** for auth state changes (4 events: auth_success, auth_failure, token_refresh, auth_revoked)
 - **Automatic token refresh** with scheduling (5 min before expiry)
 - **CSRF protection** using crypto.getRandomValues()
 - **Secure token storage** using browser.storage.local via StorageManager
 - **Cross-browser compatibility** using WebExtension polyfill
+- **Delegation pattern** for provider authentication (delegates to AuthManager)
+
+---
 
 ## Working File Locations
 
-Safe files (no known issues):
+**Completed and Safe:**
 - `src/types/auth.ts` ✅
-- `src/types/provider.ts` ✅ 
+- `src/types/provider.ts` ✅
 - `src/types/bookmark.ts` ✅
 - `src/types/storage.ts` ✅
 - `src/services/storage.ts` ✅
+- `src/services/auth-manager.ts` ✅ (Phase 2.1 complete)
+- `src/providers/github/github-provider.ts` ✅ (Phase 2.2 complete)
 - `src/utils/logger.ts` ✅
 - `src/utils/browser.ts` ✅
 
-Problematic files (corruption risk):
-- `src/services/auth-manager.ts` ⚠️ (restart VS Code before attempting)
+**Next to Create:**
+- `src/providers/jira/jira-provider.ts` 📋 (Phase 2.3)
 
-## Phase 3 Dependencies
+---
 
-Phase 3 (Provider System) depends on:
-- AuthManager completion from Phase 2
-- Provider interface implementation
-- GitHub/Jira auth provider classes
+## Phase Status Summary
 
-Cannot proceed to Phase 3 until Phase 2 auth system is stable.
+**Phase 1:** ✅ Complete (Types, Storage, Logger, Browser utils)
+**Phase 2.1:** ✅ Complete (AuthManager - Commit b39ee9e)
+**Phase 2.2:** ✅ Complete (GitHub Provider - Commit 3850c97)
+**Phase 2.3:** 📋 Next (Jira Provider)
+**Phase 3+:** 📋 Pending (Provider Registry, Sync Engine, UI Components)
+
+---
+
+## Development Workflow
+
+**Standard workflow for each phase:**
+1. Implement feature/component
+2. Fix TypeScript errors (`npm run typecheck`)
+3. Fix linting issues (`npm run lint:fix` and `npm run lint:md:fix`)
+4. Create completion documentation in `docs/phase-X.X-completion.md`
+5. Commit with descriptive message following conventional commits format
+
+**Quality checks before commit:**
+- ✅ `npm run typecheck` - No TypeScript errors
+- ✅ `npm run lint` - No Biome linting errors
+- ✅ `npm run lint:md` - No markdown linting errors
+
+**Linting Commands:**
+- `npm run lint` - Check TypeScript/JavaScript code with Biome
+- `npm run lint:fix` - Auto-fix Biome linting issues
+- `npm run lint:md` - Check markdown files (docs/**/*.md)
+- `npm run lint:md:fix` - **Auto-fix markdown issues** (use this instead of manual fixes!)
+
+**Important:** When creating markdown documentation (especially in `docs/`), use `npm run lint:md:fix` to automatically fix formatting issues like:
+- Tabs vs spaces in code blocks
+- Missing blank lines around headings/lists/code blocks
+- Emphasis used instead of headings
+This is much faster than manually fixing markdown linting errors.
+
+---
+
+## File Corruption Recovery (Historical Context)
+
+**Status:** ✅ RESOLVED - Issue occurred during Phase 2.1 development
+
+**Historical issue:** VS Code file watcher + TypeScript language service caching conflict caused `create_file` tool to merge new content with cached content.
+
+**Resolution:** Manual paste approach was used successfully. Issue has not recurred in Phase 2.2.
+
+**If it happens again:**
+1. STOP immediately, don't retry
+2. User must restart VS Code (full restart)
+3. Use `create_file` tool on first attempt after restart
+4. If corruption persists, switch to manual paste approach
