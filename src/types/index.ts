@@ -1,0 +1,56 @@
+/**
+ * Type Definitions Index
+ * Central export point for all type definitions
+ */
+
+// Authentication types
+export type {
+	AuthError,
+	AuthEvent,
+	AuthState,
+	AuthTokens,
+	AuthUser,
+	OAuthCodeResponse,
+	OAuthConfig,
+	OAuthTokenResponse,
+} from "./auth";
+export { AuthErrorType } from "./auth";
+// Bookmark types
+export type {
+	BatchBookmarkResult,
+	BookmarkFolder,
+	BookmarkItem,
+	BookmarkMetadata,
+	BookmarkOperationResult,
+	BookmarkRecord,
+	BookmarkSyncDiff,
+	BookmarkUpdateItem,
+} from "./bookmark";
+// Provider types
+export type {
+	AuthResult,
+	Provider,
+	ProviderConfig,
+	ProviderFactory,
+	ProviderMetadata,
+	ProviderRegistryEntry,
+	ProviderStatus,
+	UserInfo,
+} from "./provider";
+
+// Storage types
+export type {
+	BookmarkMetadataStorage,
+	ExtensionSettings,
+	Migration,
+	MigrationFunction,
+	ProviderStorageData,
+	StorageArea,
+	StorageChange,
+	StorageChanges,
+	StorageOperationResult,
+	StorageSchema,
+	StorageStats,
+} from "./storage";
+
+export { DEFAULT_SETTINGS, SCHEMA_VERSION, StorageKeys } from "./storage";

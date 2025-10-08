@@ -21,25 +21,23 @@
 - [x] Set up Biome
 - [x] Configure build for Firefox (.xpi) and Chrome (.crx)
 
-### 1.2 Core Type Definitions
+### 1.2 Core Type Definitions ✓
 
 **Files to create:**
 
-- `src/types/provider.ts` - Provider interface and types
-- `src/types/bookmark.ts` - Bookmark item types
-- `src/types/storage.ts` - Storage schema types
-- `src/types/auth.ts` - Authentication types
+- [x] `src/types/provider.ts` - Provider interface and types
+- [x] `src/types/bookmark.ts` - Bookmark item types
+- [x] `src/types/storage.ts` - Storage schema types
+- [x] `src/types/auth.ts` - Authentication types
+- [x] `src/types/index.ts` - Central type exports
 
 **Tasks:**
 
-```typescript
-// Define core interfaces
-- Provider interface
-- BookmarkItem interface
-- StorageSchema interface
-- AuthResult interface
-- ProviderConfig interface
-```
+- [x] Provider interface
+- [x] BookmarkItem interface
+- [x] StorageSchema interface
+- [x] AuthResult interface
+- [x] ProviderConfig interface
 
 ### 1.3 Storage Manager
 
