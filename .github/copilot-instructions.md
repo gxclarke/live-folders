@@ -126,15 +126,42 @@
 - ✅ Registry pattern with Map-based storage for O(1) lookups
 - ✅ Commit: 3c32362
 
-### Current Phase (Phase 4 - NEXT):
+**Phase 4 (Complete - Committed):**
+- ✅ **Phase 4.1**: Bookmark Manager (`src/services/bookmark-manager.ts`) - 370 lines
+  - Type-safe browser.bookmarks API wrapper
+  - 15 public methods for folder and bookmark operations
+  - Batch operations with error collection
+  - Folder ID caching for performance
+  - Duplicate detection
+  - Commit: af04e4b
+- ✅ **Phase 4.2**: Sync Engine (`src/services/sync-engine.ts`) - 275 lines
+  - Diff-based synchronization orchestrator
+  - 3-way merge algorithm (toAdd/toUpdate/toDelete)
+  - URL-based deduplication
+  - Last sync timestamp tracking via ProviderStorageData
+  - Integration with BookmarkManager and ProviderRegistry
+  - Commit: 4558aa7
+- ✅ **Phase 4.3**: Background Scheduler - 400+ lines
+  - `src/background/scheduler.ts` (280 lines) - Periodic sync scheduling
+  - `src/background/main.ts` (125 lines) - Service worker entry point
+  - `browser.alarms` API for reliable scheduling
+  - Configurable interval via extension settings
+  - Retry logic with MAX_RETRIES (3) and 5-minute delays
+  - Manual sync triggers via chrome.runtime.onMessage
+  - Message handlers: SYNC_ALL, SYNC_PROVIDER, GET_SYNC_STATUS
+  - Manifest updated: background service worker + permissions (bookmarks, storage, alarms)
+  - Commit: 7ad748c
+
+### Current Phase (Phase 6 - NEXT):
 - 📋 **TODO**: UI Components (Browser Action, Sidepanel, Settings)
 - 📋 Browser action popup UI
 - 📋 Provider configuration panels
 - 📋 Authentication flow UI
 - 📋 Item display and management
 - 📋 Settings and preferences
+- 📋 Manual sync triggers integrated with BackgroundScheduler
 
-### Phase 4 Requirements:
+### Phase 6 Requirements:
 1. Browser Action Popup:
    - Quick access to recent items
    - Provider status indicators
@@ -151,17 +178,45 @@
    - Sync preferences
    - Authentication management
 
-### Optional: Sync Engine (Phase 3.1):
-- Periodic sync scheduling
-- Manual sync triggers
-- Background sync operations
-- Rate limiting and conflict resolution
+### Phase 5 (Optional - Skipped for Now):
+- Conflict resolution strategies
+- Enhanced error handling and user notifications
+- Rate limiting for provider APIs
+- Sync progress indicators
 
 ---
 
 ## Key Architecture Notes
 
-**AuthManager Implementation (Phase 2.1 - TO BE CREATED NEXT):**
+### Sync System Architecture (Phase 4)
+
+**Data Flow:**
+```text
+Extension Install/Startup
+  ↓
+Background Service Worker → BackgroundScheduler.initialize()
+  ↓
+Schedule Periodic Alarm (from settings.syncInterval)
+  ↓
+Alarm Triggers → syncAll() → For each enabled provider:
+  ↓
+SyncEngine.syncProvider(providerId)
+  ├─ 1. Fetch current bookmarks (BookmarkManager)
+  ├─ 2. Fetch provider items (ProviderRegistry)
+  ├─ 3. Calculate diff (toAdd/toUpdate/toDelete)
+  ├─ 4. Apply changes (BookmarkManager batch ops)
+  └─ 5. Update lastSync timestamp (StorageManager)
+```
+
+**Message Passing API:**
+```typescript
+// From popup/sidepanel to background service worker:
+chrome.runtime.sendMessage({ type: "SYNC_ALL" })
+chrome.runtime.sendMessage({ type: "SYNC_PROVIDER", providerId: "github" })
+chrome.runtime.sendMessage({ type: "GET_SYNC_STATUS" })
+```
+
+### AuthManager Implementation (Phase 2.1):
 
 ```typescript
 // Location: src/services/auth-manager.ts
@@ -221,13 +276,17 @@ export class AuthManager {
 - `src/providers/github/github-provider.ts` ✅ (Phase 2.2 complete)
 - `src/providers/jira/jira-provider.ts` ✅ (Phase 2.3 complete)
 - `src/services/provider-registry.ts` ✅ (Phase 3 complete)
+- `src/services/bookmark-manager.ts` ✅ (Phase 4.1 complete)
+- `src/services/sync-engine.ts` ✅ (Phase 4.2 complete)
+- `src/background/scheduler.ts` ✅ (Phase 4.3 complete)
+- `src/background/main.ts` ✅ (Phase 4.3 complete)
 - `src/utils/logger.ts` ✅
 - `src/utils/browser.ts` ✅
 
 **Next to Create:**
-- Browser action popup components 📋 (Phase 4)
-- Sidepanel components 📋 (Phase 4)
-- Settings/configuration UI 📋 (Phase 4)
+- Browser action popup components 📋 (Phase 6)
+- Sidepanel components 📋 (Phase 6)
+- Settings/configuration UI 📋 (Phase 6)
 
 ---
 
@@ -238,8 +297,11 @@ export class AuthManager {
 **Phase 2.2:** ✅ Complete (GitHub Provider - Commit 3850c97)
 **Phase 2.3:** ✅ Complete (Jira Provider - Commit efcc55d)
 **Phase 3:** ✅ Complete (Provider Registry - Commit 3c32362)
-**Phase 4:** 📋 Next (UI Components, Browser Action, Sidepanel, Settings)
-**Phase 5+:** 📋 Pending (Sync Engine, Background Workers)
+**Phase 4.1:** ✅ Complete (Bookmark Manager - Commit af04e4b)
+**Phase 4.2:** ✅ Complete (Sync Engine - Commit 4558aa7)
+**Phase 4.3:** ✅ Complete (Background Scheduler - Commit 7ad748c)
+**Phase 5:** 📋 Optional (Conflict Resolution, Enhanced Error Handling)
+**Phase 6:** 📋 Next (UI Components, Browser Action, Sidepanel, Settings)
 
 ---
 
