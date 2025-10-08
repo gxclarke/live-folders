@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { useId, useMemo, useState } from "react";
 import { createAppTheme } from "@/theme";
+import { ProvidersView } from "./views/ProvidersView";
 import "./App.css";
 
 export default function App() {
@@ -58,7 +59,7 @@ export default function App() {
 				>
 					{currentTab === 0 && (
 						<Box role="tabpanel" id={`${tabIdBase}-panel-0`} aria-labelledby={`${tabIdBase}-tab-0`}>
-							<p>Providers View - Coming Soon</p>
+							<ProvidersView />
 						</Box>
 					)}
 					{currentTab === 1 && (
