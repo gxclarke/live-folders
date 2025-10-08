@@ -12,6 +12,11 @@ dist
 release
 dist-ssr
 *.local
+artifacts
+*.xpi
+*.crx
+*.pem
+web-ext-artifacts
 
 # Editor directories and files
 .vscode/*

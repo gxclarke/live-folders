@@ -1,0 +1,45 @@
+# web-ext configuration for Firefox extension development
+# https://extensionworkshop.com/documentation/develop/web-ext-command-reference/
+
+sourceDir: dist
+artifactsDir: artifacts
+verbose: false
+
+# Development server settings
+run:
+  target:
+    - firefox-desktop
+  startUrl:
+    - about:debugging#/runtime/this-firefox
+  browserConsole: true
+  pref:
+    # Enable extension debugging
+    extensions.experiments.enabled: true
+    # Disable signature requirement for dev
+    xpinstall.signatures.required: false
+
+# Build settings
+build:
+  overwriteDest: true
+
+# Linting settings  
+lint:
+  selfHosted: false
+  warningsAsErrors: false
+  output: text
+  metadata: false
+  pretty: true
+
+# Ignored files/directories
+ignoreFiles:
+  - node_modules
+  - src
+  - .git
+  - .vscode
+  - '*.md'
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - vite.config.ts
+  - biome.json
+  - .markdownlint.json
