@@ -310,6 +310,24 @@ export class BackgroundScheduler {
 	}
 
 	/**
+	 * Update sync interval
+	 *
+	 * Reschedules the periodic sync with a new interval.
+	 * Called when user changes sync settings.
+	 */
+	public async updateSyncInterval(intervalMs: number): Promise<void> {
+		logger.info("Updating sync interval", { intervalMs });
+
+		// Update settings
+		await this.storage.saveSettings({ syncInterval: intervalMs });
+
+		// Reschedule periodic sync with new interval
+		await this.schedulePeriodicSync();
+
+		logger.info("Sync interval updated successfully");
+	}
+
+	/**
 	 * Dispose the scheduler
 	 */
 	public async dispose(): Promise<void> {

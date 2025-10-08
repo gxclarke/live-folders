@@ -117,6 +117,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		return true;
 	}
 
+	if (message.type === "UPDATE_SYNC_INTERVAL") {
+		// Update sync interval
+		const { interval } = message;
+		const scheduler = BackgroundScheduler.getInstance();
+		scheduler
+			.updateSyncInterval(interval)
+			.then(() => {
+				sendResponse({ success: true });
+			})
+			.catch((error) => {
+				logger.error("Update sync interval failed", error as Error);
+				sendResponse({ success: false, error: (error as Error).message });
+			});
+
+		// Return true to indicate async response
+		return true;
+	}
+
 	// Unknown message type
 	return false;
 });
