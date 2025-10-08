@@ -99,6 +99,17 @@ export class GitHubProvider implements Provider {
 	public async initialize(): Promise<void> {
 		this.logger.info("Initializing GitHub provider");
 
+		// Ensure provider storage exists with default config
+		const existingData = await storageManager.getProvider(this.PROVIDER_ID);
+		if (!existingData) {
+			this.logger.info("Creating initial provider storage");
+			await storageManager.saveProvider(this.PROVIDER_ID, {
+				config: {
+					enabled: false,
+				},
+			});
+		}
+
 		// TODO: Get client ID from settings/environment
 		// For now, this needs to be configured separately
 

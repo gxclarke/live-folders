@@ -136,6 +136,17 @@ export class JiraProvider implements Provider {
 	public async initialize(): Promise<void> {
 		this.logger.info("Initializing Jira provider");
 
+		// Ensure provider storage exists with default config
+		const existingData = await storageManager.getProvider(this.PROVIDER_ID);
+		if (!existingData) {
+			this.logger.info("Creating initial provider storage");
+			await storageManager.saveProvider(this.PROVIDER_ID, {
+				config: {
+					enabled: false,
+				},
+			});
+		}
+
 		// Load provider configuration
 		const config = await this.getConfig();
 		const jiraConfig = config as JiraProviderConfig;

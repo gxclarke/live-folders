@@ -231,9 +231,7 @@ export function ProvidersView() {
 
 			if (!providerData) {
 				// Provider not found - this shouldn't happen if ProviderRegistry initialized properly
-				setError(
-					"GitHub provider not initialized. Please reload the extension and try again.",
-				);
+				setError("GitHub provider not initialized. Please reload the extension and try again.");
 				return;
 			}
 
