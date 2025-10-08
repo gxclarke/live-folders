@@ -21,6 +21,7 @@ export interface UseProvidersResult {
 	error: string | null;
 	syncAll: () => Promise<void>;
 	syncProvider: (providerId: string) => Promise<void>;
+	connectProvider: (providerId: string) => Promise<void>;
 	openSettings: () => void;
 }
 
@@ -153,6 +154,39 @@ export function useProviders(): UseProvidersResult {
 		}
 	};
 
+	// Connect provider (authenticate)
+	const connectProvider = async (providerId: string) => {
+		try {
+			logger.info(`Connecting provider ${providerId}`);
+
+			const registry = ProviderRegistry.getInstance();
+			const provider = registry.getProvider(providerId);
+
+			if (!provider) {
+				throw new Error(`Provider ${providerId} not found`);
+			}
+
+			// Trigger authentication
+			const result = await provider.authenticate();
+
+			if (!result.success) {
+				throw new Error(result.error || "Authentication failed");
+			}
+
+			logger.info(`Provider ${providerId} connected successfully`);
+
+			// Refresh provider status
+			await refreshProviderStatus();
+		} catch (err) {
+			logger.error(`Failed to connect provider ${providerId}`, err as Error);
+
+			// Don't set error for user cancellation
+			if (err instanceof Error && !err.message.includes("cancelled")) {
+				setError(err.message);
+			}
+		}
+	};
+
 	// Open sidepanel settings
 	const openSettings = async () => {
 		try {
@@ -173,6 +207,7 @@ export function useProviders(): UseProvidersResult {
 		error,
 		syncAll,
 		syncProvider,
+		connectProvider,
 		openSettings,
 	};
 }

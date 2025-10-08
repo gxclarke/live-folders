@@ -22,6 +22,7 @@ import { ProviderRegistry } from "@/services/provider-registry";
 import { StorageManager } from "@/services/storage";
 import browser from "@/utils/browser";
 import { Logger } from "@/utils/logger";
+import { useAuthentication } from "../hooks/useAuthentication";
 
 const logger = new Logger("ProvidersView");
 
@@ -47,6 +48,7 @@ export function ProvidersView() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [syncing, setSyncing] = useState<Set<string>>(new Set());
+	const { authenticating, error: authError, authenticate, clearError } = useAuthentication();
 
 	// Load providers and bookmark folders
 	useEffect(() => {
@@ -201,9 +203,31 @@ export function ProvidersView() {
 	const handleConnect = async (providerId: string) => {
 		try {
 			logger.info(`Connecting provider ${providerId}`);
-			// TODO: Implement authentication flow
-			// This will be implemented in Phase 6.3
-			setError("Authentication flow not yet implemented");
+
+			// Clear any previous auth errors
+			clearError();
+			setError(null);
+
+			// Trigger authentication
+			const success = await authenticate(providerId);
+
+			if (success) {
+				// Refresh provider list to show updated auth status
+				const registry = ProviderRegistry.getInstance();
+
+				setProviders((prev) =>
+					prev.map((p) => {
+						if (p.id === providerId) {
+							const status = registry.getProviderStatus(providerId);
+							return {
+								...p,
+								authenticated: status?.authenticated ?? true,
+							};
+						}
+						return p;
+					}),
+				);
+			}
 		} catch (err) {
 			logger.error(`Failed to connect provider ${providerId}`, err as Error);
 			setError(err instanceof Error ? err.message : "Connection failed");
@@ -220,11 +244,17 @@ export function ProvidersView() {
 	}
 
 	// Render error state
-	if (error) {
+	if (error || authError) {
 		return (
 			<Box p={2}>
-				<Alert severity="error" onClose={() => setError(null)}>
-					{error}
+				<Alert
+					severity="error"
+					onClose={() => {
+						setError(null);
+						clearError();
+					}}
+				>
+					{error || authError}
 				</Alert>
 			</Box>
 		);
@@ -320,8 +350,10 @@ export function ProvidersView() {
 											size="small"
 											variant="contained"
 											onClick={() => handleConnect(provider.id)}
+											disabled={authenticating}
+											startIcon={authenticating ? <CircularProgress size={16} /> : undefined}
 										>
-											Connect
+											{authenticating ? "Connecting..." : "Connect"}
 										</Button>
 									) : (
 										<Button

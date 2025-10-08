@@ -22,7 +22,8 @@ export default function App() {
 		[prefersDarkMode],
 	);
 
-	const { providers, loading, error, syncAll, syncProvider, openSettings } = useProviders();
+	const { providers, loading, error, syncAll, syncProvider, connectProvider, openSettings } =
+		useProviders();
 
 	return (
 		<ThemeProvider theme={theme}>
@@ -60,7 +61,7 @@ export default function App() {
 
 				{!loading && !error && (
 					<>
-						<ProviderList providers={providers} onSync={syncProvider} />
+						<ProviderList providers={providers} onSync={syncProvider} onConnect={connectProvider} />
 						<QuickActions onSyncAll={syncAll} onOpenSettings={openSettings} />
 					</>
 				)}

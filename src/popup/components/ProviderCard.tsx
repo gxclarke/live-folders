@@ -8,6 +8,7 @@ import type { ProviderInfo } from "../hooks/useProviders";
 export interface ProviderCardProps {
 	provider: ProviderInfo;
 	onSync: () => Promise<void>;
+	onConnect: () => Promise<void>;
 }
 
 /**
@@ -15,8 +16,9 @@ export interface ProviderCardProps {
  *
  * Displays individual provider status and actions.
  */
-export function ProviderCard({ provider, onSync }: ProviderCardProps) {
+export function ProviderCard({ provider, onSync, onConnect }: ProviderCardProps) {
 	const [syncing, setSyncing] = useState(false);
+	const [connecting, setConnecting] = useState(false);
 
 	const handleSync = async () => {
 		setSyncing(true);
@@ -40,11 +42,17 @@ export function ProviderCard({ provider, onSync }: ProviderCardProps) {
 				<Button
 					size="small"
 					startIcon={<LoginIcon />}
-					onClick={() => {
-						// TODO: Trigger authentication
+					onClick={async () => {
+						setConnecting(true);
+						try {
+							await onConnect();
+						} finally {
+							setConnecting(false);
+						}
 					}}
+					disabled={connecting}
 				>
-					Connect
+					{connecting ? "Connecting..." : "Connect"}
 				</Button>
 			);
 		}
