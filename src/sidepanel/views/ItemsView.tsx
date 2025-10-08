@@ -5,7 +5,6 @@ import {
 	Card,
 	CardContent,
 	Chip,
-	CircularProgress,
 	IconButton,
 	InputAdornment,
 	Link,
@@ -15,6 +14,7 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { ProviderIcon } from "@/components/ProviderIcon";
+import { ItemsListSkeleton } from "@/components/Skeletons";
 import { BookmarkManager } from "@/services/bookmark-manager";
 import { ProviderRegistry } from "@/services/provider-registry";
 import { StorageManager } from "@/services/storage";
@@ -142,11 +142,7 @@ export function ItemsView() {
 
 	// Render loading state
 	if (loading) {
-		return (
-			<Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>
-				<CircularProgress />
-			</Box>
-		);
+		return <ItemsListSkeleton />;
 	}
 
 	// Render error state

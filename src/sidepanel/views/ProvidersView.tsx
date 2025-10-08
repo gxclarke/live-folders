@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { ProviderIcon } from "@/components/ProviderIcon";
+import { ProviderListSkeleton } from "@/components/Skeletons";
 import type { ProviderStatus } from "@/services/provider-registry";
 import { ProviderRegistry } from "@/services/provider-registry";
 import { StorageManager } from "@/services/storage";
@@ -236,11 +237,7 @@ export function ProvidersView() {
 
 	// Render loading state
 	if (loading) {
-		return (
-			<Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>
-				<CircularProgress />
-			</Box>
-		);
+		return <ProviderListSkeleton />;
 	}
 
 	// Render error state

@@ -1,12 +1,6 @@
-import {
-	Alert,
-	Box,
-	CircularProgress,
-	CssBaseline,
-	ThemeProvider,
-	useMediaQuery,
-} from "@mui/material";
+import { Alert, Box, CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
 import { useMemo } from "react";
+import { ProviderListSkeleton } from "@/components/Skeletons";
 import { createAppTheme } from "@/theme";
 import { Header } from "./components/Header";
 import { ProviderList } from "./components/ProviderList";
@@ -38,27 +32,16 @@ export default function App() {
 				}}
 			>
 				<Header onSettingsClick={openSettings} />
-
 				{loading && (
-					<Box
-						sx={{
-							display: "flex",
-							justifyContent: "center",
-							alignItems: "center",
-							flex: 1,
-							py: 4,
-						}}
-					>
-						<CircularProgress />
+					<Box sx={{ p: 2 }}>
+						<ProviderListSkeleton />
 					</Box>
-				)}
-
+				)}{" "}
 				{error && (
 					<Box sx={{ p: 2 }}>
 						<Alert severity="error">{error}</Alert>
 					</Box>
 				)}
-
 				{!loading && !error && (
 					<>
 						<ProviderList providers={providers} onSync={syncProvider} onConnect={connectProvider} />
