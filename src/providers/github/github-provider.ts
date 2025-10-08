@@ -340,10 +340,12 @@ export class GitHubProvider implements Provider {
 
 		return {
 			id: pr.node_id,
+			providerId: this.metadata.id,
 			title: `#${pr.number}: ${pr.title}`,
 			url: pr.html_url,
 			createdAt: new Date(pr.created_at).getTime(),
 			updatedAt: new Date(pr.updated_at).getTime(),
+			lastModified: pr.updated_at,
 			metadata: {
 				number: pr.number,
 				state: pr.state,

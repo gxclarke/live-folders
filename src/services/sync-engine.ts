@@ -203,6 +203,7 @@ export class SyncEngine {
 					bookmarkId: current.id,
 					oldItem: {
 						id: current.id,
+						providerId: item.providerId,
 						title: current.title,
 						url: current.url,
 					},

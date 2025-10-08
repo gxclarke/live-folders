@@ -13,6 +13,8 @@ export interface BookmarkItem {
 	title: string;
 	/** Target URL */
 	url: string;
+	/** Provider ID this item belongs to */
+	providerId: string;
 	/** Optional description */
 	description?: string;
 	/** Optional favicon URL */
@@ -21,6 +23,8 @@ export interface BookmarkItem {
 	createdAt?: number;
 	/** Last update timestamp */
 	updatedAt?: number;
+	/** Last modification timestamp (ISO string) */
+	lastModified?: string;
 	/** Provider-specific metadata */
 	metadata?: BookmarkMetadata;
 }
@@ -123,4 +127,24 @@ export interface BatchBookmarkResult {
 	results: BookmarkOperationResult[];
 	/** Any errors encountered */
 	errors: string[];
+}
+
+/**
+ * Conflict resolution strategy
+ */
+export type ConflictStrategy =
+	| "remote_wins" // Always use remote version
+	| "local_wins" // Always use local version
+	| "newest_wins" // Use whichever is newer
+	| "manual" // Require user decision
+	| "merge"; // Attempt to merge changes
+
+/**
+ * Manual conflict resolution action
+ */
+export interface ConflictResolution {
+	/** The action to take */
+	action: "keep_local" | "keep_remote" | "keep_both" | "delete_both";
+	/** Optional note about the resolution */
+	note?: string;
 }

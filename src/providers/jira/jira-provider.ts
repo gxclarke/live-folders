@@ -532,10 +532,12 @@ export class JiraProvider implements Provider {
 
 		return {
 			id: issue.id,
+			providerId: this.metadata.id,
 			title: `${issue.key}: ${issue.fields.summary}`,
 			url: issueUrl,
 			createdAt: new Date(issue.fields.created).getTime(),
 			updatedAt: new Date(issue.fields.updated).getTime(),
+			lastModified: issue.fields.updated,
 			metadata: {
 				key: issue.key,
 				status: issue.fields.status.name,

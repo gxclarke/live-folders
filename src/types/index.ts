@@ -25,6 +25,8 @@ export type {
 	BookmarkRecord,
 	BookmarkSyncDiff,
 	BookmarkUpdateItem,
+	ConflictResolution,
+	ConflictStrategy,
 } from "./bookmark";
 // Provider types
 export type {
