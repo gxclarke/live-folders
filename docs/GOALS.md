@@ -24,6 +24,10 @@ This will initially have me login to Jira to establish a security context.
 
 Then, once a minute it will query the Jira API to find all work items that are assigned to me. Each work item becomes a bookmark within the folder.
 
-## Going further
+## Extensibility
 
 The extension should be extensible so users can connect other external systems.
+
+## Enhancement: configuration options and actions
+
+Each live folder should support the user refreshing immediately.

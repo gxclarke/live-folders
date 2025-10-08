@@ -18,7 +18,15 @@ export default defineManifest({
 		service_worker: "src/background/main.ts",
 		type: "module",
 	},
-	permissions: ["sidePanel", "contentSettings", "bookmarks", "storage", "alarms"],
+	permissions: [
+		"sidePanel",
+		"contentSettings",
+		"bookmarks",
+		"storage",
+		"alarms",
+		"identity",
+		"notifications",
+	],
 	content_scripts: [
 		{
 			js: ["src/content/main.tsx"],

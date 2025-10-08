@@ -5,9 +5,23 @@
 
 import { authManager } from "@/services/auth-manager";
 import { storageManager } from "@/services/storage";
-import type { AuthResult, BookmarkItem, Provider, ProviderConfig, ProviderMetadata } from "@/types";
+import type {
+	AuthResult,
+	AuthState,
+	BookmarkItem,
+	Provider,
+	ProviderConfig,
+	ProviderMetadata,
+} from "@/types";
 import browser from "@/utils/browser";
 import { Logger } from "@/utils/logger";
+
+/**
+ * GitHub provider configuration
+ */
+interface GitHubConfig extends ProviderConfig {
+	personalAccessToken?: string;
+}
 
 /**
  * GitHub user response
@@ -101,6 +115,17 @@ export class GitHubProvider implements Provider {
 		this.logger.info("Starting GitHub authentication");
 
 		try {
+			// Check if we have a Personal Access Token configured
+			const config = (await this.getConfig()) as GitHubConfig | null;
+
+			if (config?.personalAccessToken) {
+				this.logger.info("Using Personal Access Token authentication");
+				return await this.authenticateWithPAT(config.personalAccessToken);
+			}
+
+			// Fall back to OAuth flow
+			this.logger.info("Using OAuth flow");
+
 			// Delegate to AuthManager
 			const authState = await authManager.authenticate(this.PROVIDER_ID);
 
@@ -138,10 +163,68 @@ export class GitHubProvider implements Provider {
 				user: updatedAuthState.user,
 			};
 		} catch (error) {
-			this.logger.error("GitHub authentication failed", { error }, error as Error);
+			const errorMessage = error instanceof Error ? error.message : "Authentication failed";
+			this.logger.error("GitHub authentication failed", {
+				errorMessage,
+				errorType: error instanceof Error ? error.constructor.name : typeof error,
+			});
 			return {
 				success: false,
-				error: error instanceof Error ? error.message : "Authentication failed",
+				error: errorMessage,
+			};
+		}
+	}
+
+	/**
+	 * Authenticate using Personal Access Token
+	 */
+	private async authenticateWithPAT(token: string): Promise<AuthResult> {
+		try {
+			// Fetch user information to validate token
+			const user = await this.fetchUserInfo(token);
+
+			// Create auth state
+			const authState: AuthState = {
+				providerId: this.PROVIDER_ID,
+				authenticated: true,
+				tokens: {
+					accessToken: token,
+					tokenType: "Bearer",
+					// PATs don't expire, but set a far future date
+					expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+				},
+				user: {
+					id: user.id.toString(),
+					username: user.login,
+					displayName: user.name || user.login,
+					email: user.email || undefined,
+					avatarUrl: user.avatar_url,
+					metadata: {
+						company: user.company || undefined,
+						location: user.location || undefined,
+						bio: user.bio || undefined,
+					},
+				},
+				lastAuth: Date.now(),
+			};
+
+			// Save auth state
+			await storageManager.saveAuth(this.PROVIDER_ID, authState);
+
+			this.logger.info("PAT authentication successful");
+
+			return {
+				success: true,
+				accessToken: token,
+				user: authState.user,
+			};
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "PAT authentication failed";
+			this.logger.error("PAT authentication failed", { errorMessage });
+			return {
+				success: false,
+				error: errorMessage,
 			};
 		}
 	}

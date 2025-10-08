@@ -1,4 +1,4 @@
-import { CheckCircle, Sync, Warning } from "@mui/icons-material";
+import { CheckCircle, ExpandMore, Settings, Sync, Warning } from "@mui/icons-material";
 import {
 	Alert,
 	Box,
@@ -7,12 +7,15 @@ import {
 	CardActions,
 	CardContent,
 	CircularProgress,
+	Collapse,
 	FormControl,
+	IconButton,
 	InputLabel,
 	MenuItem,
 	Select,
 	Stack,
 	Switch,
+	TextField,
 	Typography,
 } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -49,6 +52,8 @@ export function ProvidersView() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [syncing, setSyncing] = useState<Set<string>>(new Set());
+	const [expandedSettings, setExpandedSettings] = useState<Set<string>>(new Set());
+	const [githubPAT, setGithubPAT] = useState<string>("");
 	const { authenticating, error: authError, authenticate, clearError } = useAuthentication();
 
 	// Load providers and bookmark folders
@@ -200,6 +205,53 @@ export function ProvidersView() {
 		}
 	};
 
+	// Toggle settings expansion
+	const handleToggleSettings = (providerId: string) => {
+		setExpandedSettings((prev) => {
+			const next = new Set(prev);
+			if (next.has(providerId)) {
+				next.delete(providerId);
+			} else {
+				next.add(providerId);
+			}
+			return next;
+		});
+	};
+
+	// Save GitHub PAT
+	const handleSaveGitHubPAT = async () => {
+		try {
+			if (!githubPAT.trim()) {
+				setError("Please enter a valid GitHub Personal Access Token");
+				return;
+			}
+
+			const storage = StorageManager.getInstance();
+			const providerData = await storage.getProvider("github");
+
+			if (!providerData) {
+				throw new Error("GitHub provider not found");
+			}
+
+			// Save PAT to provider config
+			providerData.config = {
+				...providerData.config,
+				personalAccessToken: githubPAT,
+			} as typeof providerData.config & { personalAccessToken: string };
+
+			await storage.saveProvider("github", providerData);
+
+			logger.info("GitHub PAT saved successfully");
+			setGithubPAT(""); // Clear input after saving
+
+			// Show success message
+			setError(null);
+		} catch (err) {
+			logger.error("Failed to save GitHub PAT", err as Error);
+			setError(err instanceof Error ? err.message : "Failed to save token");
+		}
+	};
+
 	// Authenticate provider
 	const handleConnect = async (providerId: string) => {
 		try {
@@ -338,6 +390,66 @@ export function ProvidersView() {
 										<Typography variant="caption" color="text.secondary">
 											Last synced: {new Date(provider.lastSync).toLocaleString()}
 										</Typography>
+									)}
+
+									{/* Provider-specific settings */}
+									{!provider.authenticated && provider.id === "github" && (
+										<Box mt={2}>
+											<Box display="flex" alignItems="center" gap={1} mb={1}>
+												<IconButton
+													size="small"
+													onClick={() => handleToggleSettings(provider.id)}
+													sx={{
+														transform: expandedSettings.has(provider.id)
+															? "rotate(180deg)"
+															: "rotate(0deg)",
+														transition: "transform 0.3s",
+													}}
+												>
+													<ExpandMore />
+												</IconButton>
+												<Typography variant="body2" color="text.secondary">
+													Advanced Settings
+												</Typography>
+											</Box>
+
+											<Collapse in={expandedSettings.has(provider.id)}>
+												<Stack spacing={2} mt={1}>
+													<Alert severity="info" sx={{ fontSize: "0.875rem" }}>
+														Enter a GitHub Personal Access Token (classic) with
+														<strong> repo</strong>, <strong>read:user</strong>, and{" "}
+														<strong>read:org</strong> scopes.{" "}
+														<a
+															href="https://github.com/settings/tokens"
+															target="_blank"
+															rel="noopener noreferrer"
+														>
+															Create one here
+														</a>
+														.
+													</Alert>
+													<TextField
+														fullWidth
+														size="small"
+														type="password"
+														label="Personal Access Token"
+														placeholder="ghp_..."
+														value={githubPAT}
+														onChange={(e) => setGithubPAT(e.target.value)}
+														helperText="This token will be stored securely in your browser"
+													/>
+													<Button
+														variant="outlined"
+														size="small"
+														onClick={handleSaveGitHubPAT}
+														disabled={!githubPAT.trim()}
+														startIcon={<Settings />}
+													>
+														Save Token
+													</Button>
+												</Stack>
+											</Collapse>
+										</Box>
 									)}
 								</CardContent>
 

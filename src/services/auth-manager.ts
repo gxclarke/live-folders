@@ -162,14 +162,22 @@ export class AuthManager {
 			this.logger.info("Authentication successful", { providerId });
 			return authState;
 		} catch (error) {
-			this.logger.error("Authentication failed", { providerId, error }, error as Error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+
+			this.logger.error("Authentication failed", {
+				providerId,
+				errorMessage,
+				errorStack,
+				errorType: error instanceof Error ? error.constructor.name : typeof error,
+			});
 
 			// Emit failure event
 			this.emitEvent({
 				type: "auth_failure",
 				providerId,
 				timestamp: Date.now(),
-				data: { error },
+				data: { error: errorMessage },
 			});
 
 			if (this.isAuthError(error)) {
@@ -185,7 +193,12 @@ export class AuthManager {
 				);
 			}
 
-			throw this.createError(AuthErrorType.UNKNOWN, "Authentication failed", providerId, error);
+			throw this.createError(
+				AuthErrorType.UNKNOWN,
+				errorMessage,
+				providerId,
+				error instanceof Error ? error : undefined,
+			);
 		}
 	}
 
@@ -436,7 +449,16 @@ export class AuthManager {
 		});
 
 		if (!response.ok) {
-			throw new Error(`Token exchange failed: ${response.statusText}`);
+			const errorText = await response.text();
+			this.logger.error("Token exchange failed", {
+				status: response.status,
+				statusText: response.statusText,
+				errorBody: errorText,
+				tokenUrl: config.tokenUrl,
+			});
+			throw new Error(
+				`Token exchange failed: ${response.status} ${response.statusText} - ${errorText}`,
+			);
 		}
 
 		const data: OAuthTokenResponse = await response.json();

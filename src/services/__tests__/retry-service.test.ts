@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	RetryService,
-	RetryStrategy,
-	RetryableErrorType,
-	withRetry,
-} from "../retry-service";
+import { RetryableErrorType, RetryService, RetryStrategy, withRetry } from "../retry-service";
 
 describe("RetryService", () => {
 	let service: RetryService;
@@ -433,10 +428,7 @@ describe("RetryService", () => {
 
 	describe("retry result metadata", () => {
 		it("should track total time spent", async () => {
-			const operation = vi
-				.fn()
-				.mockRejectedValueOnce({ status: 503 })
-				.mockResolvedValue("success");
+			const operation = vi.fn().mockRejectedValueOnce({ status: 503 }).mockResolvedValue("success");
 
 			const result = await service.execute(operation, {
 				maxRetries: 1,
