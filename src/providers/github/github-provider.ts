@@ -94,8 +94,8 @@ export class GitHubProvider implements Provider {
 
 		// Ensure provider storage exists with default config
 		const existingData = await storageManager.getProvider(this.PROVIDER_ID);
+
 		if (!existingData) {
-			this.logger.info("Creating initial provider storage");
 			await storageManager.saveProvider(this.PROVIDER_ID, {
 				config: {
 					enabled: false,
@@ -312,10 +312,15 @@ export class GitHubProvider implements Provider {
 	 * Update provider configuration
 	 */
 	public async setConfig(config: Partial<ProviderConfig>): Promise<void> {
+		const providers = await storageManager.getProviders();
+		const existingData = providers[this.PROVIDER_ID];
+
 		const currentConfig = await this.getConfig();
 		const updatedConfig = { ...currentConfig, ...config };
 
+		// Preserve ALL existing provider data, only update config
 		await storageManager.saveProvider(this.PROVIDER_ID, {
+			...existingData,
 			config: updatedConfig,
 		});
 	}

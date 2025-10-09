@@ -428,10 +428,15 @@ export class JiraProvider implements Provider {
 	 * Update provider configuration
 	 */
 	public async setConfig(config: ProviderConfig): Promise<void> {
+		const providers = await storageManager.getProviders();
+		const existingData = providers[this.PROVIDER_ID];
+
 		const currentConfig = await this.getConfig();
 		const updatedConfig = { ...currentConfig, ...config };
 
+		// Preserve ALL existing provider data, only update config
 		await storageManager.saveProvider(this.PROVIDER_ID, {
+			...existingData,
 			config: updatedConfig,
 		});
 	}

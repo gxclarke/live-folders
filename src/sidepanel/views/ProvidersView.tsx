@@ -16,6 +16,7 @@ import {
 	Stack,
 	Switch,
 	TextField,
+	Tooltip,
 	Typography,
 } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ import { ProviderListSkeleton } from "@/components/Skeletons";
 import type { ProviderStatus } from "@/services/provider-registry";
 import { ProviderRegistry } from "@/services/provider-registry";
 import { StorageManager } from "@/services/storage";
+import type { ProviderConfig } from "@/types/provider";
 import browser from "@/utils/browser";
 import { Logger } from "@/utils/logger";
 import { useAuthentication } from "../hooks/useAuthentication";
@@ -71,20 +73,11 @@ export function ProvidersView() {
 				const storage = StorageManager.getInstance();
 				const providersData = await storage.getProviders();
 
-				// Debug logging
-				logger.info("Loaded providers data from storage:", providersData);
-
 				// Build provider list
 				const allProviders = registry.getAllProviders();
 				const providerList: ProviderData[] = allProviders.map((provider) => {
 					const providerData = providersData[provider.metadata.id];
 					const status = registry.getProviderStatus(provider.metadata.id);
-
-					logger.debug(`Provider ${provider.metadata.id} data:`, {
-						providerData,
-						folderId: providerData?.folderId,
-						lastSync: providerData?.lastSync,
-					});
 
 					return {
 						id: provider.metadata.id,
@@ -182,8 +175,16 @@ export function ProvidersView() {
 				throw new Error(`Provider ${providerId} not found`);
 			}
 
-			providerData.config.enabled = enabled;
-			await storage.saveProvider(providerId, providerData);
+			// Update enabled state while preserving ALL other fields
+			const updatedData = {
+				...providerData,
+				config: {
+					...providerData.config,
+					enabled,
+				},
+			};
+
+			await storage.saveProvider(providerId, updatedData);
 
 			setProviders((prev) => prev.map((p) => (p.id === providerId ? { ...p, enabled } : p)));
 
@@ -204,8 +205,13 @@ export function ProvidersView() {
 				throw new Error(`Provider ${providerId} not found`);
 			}
 
-			providerData.folderId = folderId;
-			await storage.saveProvider(providerId, providerData);
+			// Update folderId while preserving ALL other fields
+			const updatedData = {
+				...providerData,
+				folderId,
+			};
+
+			await storage.saveProvider(providerId, updatedData);
 
 			setProviders((prev) => prev.map((p) => (p.id === providerId ? { ...p, folderId } : p)));
 
@@ -220,6 +226,7 @@ export function ProvidersView() {
 	const handleSync = async (providerId: string) => {
 		try {
 			setSyncing((prev) => new Set(prev).add(providerId));
+			setError(null); // Clear any previous errors
 			logger.info(`Syncing provider ${providerId}`);
 
 			const response = await chrome.runtime.sendMessage({
@@ -233,7 +240,7 @@ export function ProvidersView() {
 
 			logger.info(`Provider ${providerId} synced successfully`);
 
-			// Refresh provider data
+			// Refresh provider data - only update lastSync, preserve existing folderId
 			const storage = StorageManager.getInstance();
 			const providersData = await storage.getProviders();
 			const providerData = providersData[providerId];
@@ -244,7 +251,7 @@ export function ProvidersView() {
 						? {
 								...p,
 								lastSync: providerData?.lastSync,
-								folderId: providerData?.folderId,
+								// Keep existing folderId - sync doesn't change it
 							}
 						: p,
 				),
@@ -291,11 +298,19 @@ export function ProvidersView() {
 				return;
 			}
 
-			// Add PAT to config using any to bypass type checking for custom fields
-			// biome-ignore lint/suspicious/noExplicitAny: Provider-specific config fields
-			(providerData.config as any).personalAccessToken = githubPAT;
+			// Add PAT to config - preserve ALL existing fields while updating the PAT
+			// Provider-specific config field (not in base ProviderConfig type)
+			const updatedConfig = {
+				...providerData.config,
+				personalAccessToken: githubPAT,
+			};
 
-			await storage.saveProvider("github", providerData);
+			const updatedData = {
+				...providerData,
+				config: updatedConfig as ProviderConfig,
+			};
+
+			await storage.saveProvider("github", updatedData);
 
 			logger.info("GitHub PAT saved successfully");
 			setGithubPAT(""); // Clear input after saving
@@ -521,15 +536,29 @@ export function ProvidersView() {
 											{authenticating ? "Connecting..." : "Connect"}
 										</Button>
 									) : (
-										<Button
-											size="small"
-											variant="outlined"
-											startIcon={isSyncing ? <CircularProgress size={16} /> : <Sync />}
-											onClick={() => handleSync(provider.id)}
-											disabled={!canSync || isSyncing}
+										<Tooltip
+											title={
+												!canSync
+													? !provider.enabled
+														? "Enable provider to sync"
+														: !provider.folderId
+															? "Select a bookmark folder first"
+															: "Provider not ready"
+													: ""
+											}
 										>
-											{isSyncing ? "Syncing..." : "Sync Now"}
-										</Button>
+											<span>
+												<Button
+													size="small"
+													variant="outlined"
+													startIcon={isSyncing ? <CircularProgress size={16} /> : <Sync />}
+													onClick={() => handleSync(provider.id)}
+													disabled={!canSync || isSyncing}
+												>
+													{isSyncing ? "Syncing..." : "Sync Now"}
+												</Button>
+											</span>
+										</Tooltip>
 									)}
 								</CardActions>
 							</Card>
