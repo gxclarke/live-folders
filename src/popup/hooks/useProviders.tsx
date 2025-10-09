@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ProviderStatus } from "@/services/provider-registry";
 import { ProviderRegistry } from "@/services/provider-registry";
 import { StorageManager } from "@/services/storage";
@@ -34,6 +34,31 @@ export function useProviders(): UseProvidersResult {
 	const [providers, setProviders] = useState<ProviderInfo[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+
+	// Refresh provider status from storage
+	const refreshProviderStatus = useCallback(async () => {
+		try {
+			const storage = StorageManager.getInstance();
+			const providersData = await storage.getProviders();
+			const registry = ProviderRegistry.getInstance();
+
+			setProviders((prev) =>
+				prev.map((provider) => {
+					const status = registry.getProviderStatus(provider.id);
+					const providerData = providersData[provider.id];
+
+					return {
+						...provider,
+						status: status || provider.status,
+						lastSync: providerData?.lastSync,
+						error: status?.lastError,
+					};
+				}),
+			);
+		} catch (err) {
+			logger.error("Failed to refresh provider status", err as Error);
+		}
+	}, []);
 
 	// Initialize and fetch provider status
 	useEffect(() => {
@@ -78,7 +103,24 @@ export function useProviders(): UseProvidersResult {
 		};
 
 		initializeProviders();
-	}, []);
+
+		// Listen for storage changes to update provider data in real-time
+		const handleStorageChange = (
+			changes: Record<string, chrome.storage.StorageChange>,
+			areaName: string,
+		) => {
+			if (areaName === "local" && changes.providers) {
+				logger.info("Providers data changed, refreshing...");
+				refreshProviderStatus();
+			}
+		};
+
+		chrome.storage.onChanged.addListener(handleStorageChange);
+
+		return () => {
+			chrome.storage.onChanged.removeListener(handleStorageChange);
+		};
+	}, [refreshProviderStatus]);
 
 	// Sync all providers via background scheduler
 	const syncAll = async () => {
@@ -129,31 +171,6 @@ export function useProviders(): UseProvidersResult {
 		}
 	};
 
-	// Refresh provider status from storage
-	const refreshProviderStatus = async () => {
-		try {
-			const storage = StorageManager.getInstance();
-			const providersData = await storage.getProviders();
-			const registry = ProviderRegistry.getInstance();
-
-			setProviders((prev) =>
-				prev.map((provider) => {
-					const status = registry.getProviderStatus(provider.id);
-					const providerData = providersData[provider.id];
-
-					return {
-						...provider,
-						status: status || provider.status,
-						lastSync: providerData?.lastSync,
-						error: status?.lastError,
-					};
-				}),
-			);
-		} catch (err) {
-			logger.error("Failed to refresh provider status", err as Error);
-		}
-	};
-
 	// Connect provider (authenticate)
 	const connectProvider = async (providerId: string) => {
 		try {
@@ -193,6 +210,8 @@ export function useProviders(): UseProvidersResult {
 			const window = await chrome.windows.getCurrent();
 			if (window.id && chrome.sidePanel) {
 				await chrome.sidePanel.open({ windowId: window.id });
+				// Close the popup after opening sidepanel
+				self.close();
 			} else {
 				logger.warn("Side panel API not available");
 			}

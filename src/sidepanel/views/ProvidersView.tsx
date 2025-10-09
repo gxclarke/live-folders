@@ -71,11 +71,20 @@ export function ProvidersView() {
 				const storage = StorageManager.getInstance();
 				const providersData = await storage.getProviders();
 
+				// Debug logging
+				logger.info("Loaded providers data from storage:", providersData);
+
 				// Build provider list
 				const allProviders = registry.getAllProviders();
 				const providerList: ProviderData[] = allProviders.map((provider) => {
 					const providerData = providersData[provider.metadata.id];
 					const status = registry.getProviderStatus(provider.metadata.id);
+
+					logger.debug(`Provider ${provider.metadata.id} data:`, {
+						providerData,
+						folderId: providerData?.folderId,
+						lastSync: providerData?.lastSync,
+					});
 
 					return {
 						id: provider.metadata.id,
@@ -125,6 +134,42 @@ export function ProvidersView() {
 		};
 
 		loadData();
+
+		// Listen for storage changes to refresh provider data in real-time
+		const handleStorageChange = (
+			changes: Record<string, chrome.storage.StorageChange>,
+			areaName: string,
+		) => {
+			if (areaName === "local" && changes.providers?.newValue) {
+				logger.info("Providers data changed in storage, updating provider state...");
+
+				// Update provider state without reloading everything
+				const providersData = changes.providers.newValue;
+				const registry = ProviderRegistry.getInstance();
+
+				setProviders((prev) =>
+					prev.map((provider) => {
+						const providerData = providersData[provider.id];
+						const status = registry.getProviderStatus(provider.id);
+
+						return {
+							...provider,
+							enabled: providerData?.config?.enabled ?? provider.enabled,
+							authenticated: status?.authenticated ?? provider.authenticated,
+							folderId: providerData?.folderId ?? provider.folderId,
+							lastSync: providerData?.lastSync ?? provider.lastSync,
+							status: status || provider.status,
+						};
+					}),
+				);
+			}
+		};
+
+		chrome.storage.onChanged.addListener(handleStorageChange);
+
+		return () => {
+			chrome.storage.onChanged.removeListener(handleStorageChange);
+		};
 	}, []);
 
 	// Toggle provider enabled state
@@ -194,7 +239,15 @@ export function ProvidersView() {
 			const providerData = providersData[providerId];
 
 			setProviders((prev) =>
-				prev.map((p) => (p.id === providerId ? { ...p, lastSync: providerData?.lastSync } : p)),
+				prev.map((p) =>
+					p.id === providerId
+						? {
+								...p,
+								lastSync: providerData?.lastSync,
+								folderId: providerData?.folderId,
+							}
+						: p,
+				),
 			);
 		} catch (err) {
 			logger.error(`Failed to sync provider ${providerId}`, err as Error);
@@ -333,7 +386,7 @@ export function ProvidersView() {
 							<Card key={provider.id} variant="outlined">
 								<CardContent>
 									<Box display="flex" alignItems="center" gap={2} mb={2}>
-										<ProviderIcon providerId={provider.id as "github" | "jira"} />
+										<ProviderIcon providerId={provider.id} />
 										<Box flex={1}>
 											<Typography variant="h6">{provider.name}</Typography>
 											<Typography variant="body2" color="text.secondary">

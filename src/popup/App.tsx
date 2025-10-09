@@ -1,7 +1,8 @@
-import { Alert, Box, CssBaseline, ThemeProvider, useMediaQuery } from "@mui/material";
+import { Alert, Box, CssBaseline, ThemeProvider } from "@mui/material";
 import { useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProviderListSkeleton } from "@/components/Skeletons";
+import { useTheme } from "@/hooks/useTheme";
 import { createAppTheme } from "@/theme";
 import { Header } from "./components/Header";
 import { ProviderList } from "./components/ProviderList";
@@ -10,12 +11,9 @@ import { useProviders } from "./hooks/useProviders";
 import "./App.css";
 
 export default function App() {
-	// Detect system color scheme preference
-	const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-	const theme = useMemo(
-		() => createAppTheme(prefersDarkMode ? "dark" : "light"),
-		[prefersDarkMode],
-	);
+	// Get theme mode from settings (respects auto/light/dark preference)
+	const themeMode = useTheme();
+	const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
 
 	const { providers, loading, error, syncAll, syncProvider, connectProvider, openSettings } =
 		useProviders();
@@ -54,7 +52,7 @@ export default function App() {
 								onSync={syncProvider}
 								onConnect={connectProvider}
 							/>
-							<QuickActions onSyncAll={syncAll} onOpenSettings={openSettings} />
+							<QuickActions onSyncAll={syncAll} />
 						</>
 					)}
 				</Box>

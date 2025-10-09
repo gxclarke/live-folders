@@ -35,11 +35,13 @@ export class ProviderRegistry {
 	private logger: Logger;
 	private providers: Map<string, Provider>;
 	private providerStatus: Map<string, ProviderStatus>;
+	private initialized: boolean;
 
 	private constructor() {
 		this.logger = new Logger("ProviderRegistry");
 		this.providers = new Map();
 		this.providerStatus = new Map();
+		this.initialized = false;
 	}
 
 	/**
@@ -56,6 +58,12 @@ export class ProviderRegistry {
 	 * Initialize the registry and all registered providers
 	 */
 	public async initialize(): Promise<void> {
+		// Skip if already initialized (check both flag and providers map)
+		if (this.initialized || this.providers.size > 0) {
+			this.logger.debug("Provider registry already initialized, skipping");
+			return;
+		}
+
 		this.logger.info("Initializing provider registry");
 
 		// Register built-in providers
@@ -64,6 +72,8 @@ export class ProviderRegistry {
 
 		// Initialize all registered providers
 		await this.initializeAllProviders();
+
+		this.initialized = true;
 
 		this.logger.info("Provider registry initialized", {
 			providerCount: this.providers.size,

@@ -204,10 +204,7 @@ export function ItemsView() {
 								<Box display="flex" alignItems="flex-start" gap={2}>
 									{/* Provider icon */}
 									<Box mt={0.5}>
-										<ProviderIcon
-											providerId={item.providerId as "github" | "jira"}
-											sx={{ fontSize: 24 }}
-										/>
+										<ProviderIcon providerId={item.providerId} sx={{ fontSize: 24 }} />
 									</Box>
 
 									{/* Content */}

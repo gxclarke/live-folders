@@ -1,24 +1,28 @@
-import { Settings as SettingsIcon, Sync as SyncIcon } from "@mui/icons-material";
-import { Box, Button, Divider, Stack } from "@mui/material";
+import { CheckCircle, Sync as SyncIcon } from "@mui/icons-material";
+import { Box, Button, Divider } from "@mui/material";
 import { useState } from "react";
 
 export interface QuickActionsProps {
 	onSyncAll: () => Promise<void>;
-	onOpenSettings: () => void;
 }
 
 /**
  * Quick Actions Component
  *
- * Displays quick action buttons for syncing all providers and opening settings.
+ * Displays quick action button for syncing all providers.
  */
-export function QuickActions({ onSyncAll, onOpenSettings }: QuickActionsProps) {
+export function QuickActions({ onSyncAll }: QuickActionsProps) {
 	const [syncing, setSyncing] = useState(false);
+	const [success, setSuccess] = useState(false);
 
 	const handleSyncAll = async () => {
 		setSyncing(true);
+		setSuccess(false);
 		try {
 			await onSyncAll();
+			setSuccess(true);
+			// Clear success state after 2 seconds
+			setTimeout(() => setSuccess(false), 2000);
 		} finally {
 			setSyncing(false);
 		}
@@ -27,20 +31,18 @@ export function QuickActions({ onSyncAll, onOpenSettings }: QuickActionsProps) {
 	return (
 		<Box>
 			<Divider />
-			<Stack direction="row" spacing={1} sx={{ p: 2 }}>
+			<Box sx={{ p: 2 }}>
 				<Button
 					variant="contained"
-					startIcon={<SyncIcon />}
+					startIcon={success ? <CheckCircle /> : <SyncIcon />}
 					onClick={handleSyncAll}
 					disabled={syncing}
 					fullWidth
+					color={success ? "success" : "primary"}
 				>
-					{syncing ? "Syncing..." : "Sync All"}
+					{syncing ? "Syncing..." : success ? "Synced!" : "Sync All"}
 				</Button>
-				<Button variant="outlined" startIcon={<SettingsIcon />} onClick={onOpenSettings}>
-					Settings
-				</Button>
-			</Stack>
+			</Box>
 		</Box>
 	);
 }

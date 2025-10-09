@@ -193,11 +193,11 @@ export class BackgroundScheduler {
 			const providersRecord = await this.storage.getProviders();
 			const providers = Object.entries(providersRecord);
 
-			// Filter to only enabled providers
-			const providersToSync = providers.filter(([, data]) => data.config.enabled);
+			// Filter to only enabled providers with folders configured
+			const providersToSync = providers.filter(([, data]) => data.config.enabled && data.folderId);
 
 			if (providersToSync.length === 0) {
-				logger.info("No providers to sync");
+				logger.info("No providers to sync (none enabled or configured)");
 				return;
 			}
 

@@ -12,9 +12,9 @@ export interface HeaderProps {
  */
 export function Header({ onSettingsClick }: HeaderProps) {
 	return (
-		<AppBar position="static" elevation={0}>
+		<AppBar position="static" elevation={0} color="transparent">
 			<Toolbar variant="dense">
-				<Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+				<Typography variant="h3" component="div" sx={{ flexGrow: 1 }}>
 					Live Folders
 				</Typography>
 				<IconButton

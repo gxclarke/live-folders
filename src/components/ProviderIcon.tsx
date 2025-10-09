@@ -1,7 +1,8 @@
+import { Extension } from "@mui/icons-material";
 import { SvgIcon, type SvgIconProps } from "@mui/material";
 
 export interface ProviderIconProps extends Omit<SvgIconProps, "children"> {
-	providerId: "github" | "jira";
+	providerId: string;
 }
 
 /**
@@ -35,8 +36,9 @@ function JiraIcon(props: SvgIconProps) {
 /**
  * Provider Icon Component
  *
- * Displays SVG icons for supported providers (GitHub, Jira).
+ * Displays SVG icons for supported providers.
  * Uses MUI's SvgIcon for consistent sizing and theming.
+ * Shows a fallback icon for unknown providers.
  */
 export function ProviderIcon({ providerId, ...props }: ProviderIconProps) {
 	switch (providerId) {
@@ -45,7 +47,7 @@ export function ProviderIcon({ providerId, ...props }: ProviderIconProps) {
 		case "jira":
 			return <JiraIcon {...props} />;
 		default:
-			// Fallback for unknown providers
-			return null;
+			// Fallback icon for unknown/future providers
+			return <Extension {...props} />;
 	}
 }

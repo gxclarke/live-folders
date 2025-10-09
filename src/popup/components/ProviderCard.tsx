@@ -73,7 +73,7 @@ export function ProviderCard({ provider, onSync, onConnect }: ProviderCardProps)
 		<Card variant="outlined">
 			<CardContent sx={{ pb: 1 }}>
 				<Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-					<ProviderIcon providerId={provider.id as "github" | "jira"} fontSize="small" />
+					<ProviderIcon providerId={provider.id} fontSize="small" />
 					<Typography variant="body1" sx={{ flexGrow: 1, fontWeight: 600 }}>
 						{provider.name}
 					</Typography>

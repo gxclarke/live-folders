@@ -1,15 +1,7 @@
-import {
-	Box,
-	Container,
-	CssBaseline,
-	Fade,
-	Tab,
-	Tabs,
-	ThemeProvider,
-	useMediaQuery,
-} from "@mui/material";
+import { Box, Container, CssBaseline, Fade, Tab, Tabs, ThemeProvider } from "@mui/material";
 import { useId, useMemo, useState } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useTheme } from "@/hooks/useTheme";
 import { createAppTheme } from "@/theme";
 import { ItemsView } from "./views/ItemsView";
 import { ProvidersView } from "./views/ProvidersView";
@@ -17,12 +9,9 @@ import { SettingsView } from "./views/SettingsView";
 import "./App.css";
 
 export default function App() {
-	// Detect system color scheme preference
-	const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-	const theme = useMemo(
-		() => createAppTheme(prefersDarkMode ? "dark" : "light"),
-		[prefersDarkMode],
-	);
+	// Get theme mode from settings (respects auto/light/dark preference)
+	const themeMode = useTheme();
+	const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
 
 	const [currentTab, setCurrentTab] = useState(0);
 	const tabIdBase = useId();
