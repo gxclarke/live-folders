@@ -17,13 +17,6 @@ import browser from "@/utils/browser";
 import { Logger } from "@/utils/logger";
 
 /**
- * GitHub provider configuration
- */
-interface GitHubConfig extends ProviderConfig {
-	personalAccessToken?: string;
-}
-
-/**
  * GitHub user response
  */
 interface GitHubUser {
@@ -127,11 +120,13 @@ export class GitHubProvider implements Provider {
 
 		try {
 			// Check if we have a Personal Access Token configured
-			const config = (await this.getConfig()) as GitHubConfig | null;
+			const config = await this.getConfig();
+			// Access personalAccessToken from config (stored as custom field)
+			const pat = (config as unknown as { personalAccessToken?: string }).personalAccessToken;
 
-			if (config?.personalAccessToken) {
+			if (pat) {
 				this.logger.info("Using Personal Access Token authentication");
-				return await this.authenticateWithPAT(config.personalAccessToken);
+				return await this.authenticateWithPAT(pat);
 			}
 
 			// Fall back to OAuth flow

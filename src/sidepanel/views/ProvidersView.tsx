@@ -102,7 +102,9 @@ export function ProvidersView() {
 
 				const extractFolders = (nodes: browser.Bookmarks.BookmarkTreeNode[]) => {
 					for (const node of nodes) {
-						if (node.type === "folder") {
+						// A node is a folder if it doesn't have a url property
+						// (bookmarks have urls, folders don't)
+						if (!node.url) {
 							folderList.push({ id: node.id, title: node.title || "Untitled" });
 							if (node.children) {
 								extractFolders(node.children);
@@ -112,6 +114,7 @@ export function ProvidersView() {
 				};
 
 				extractFolders(bookmarkFolders);
+				logger.info(`Loaded ${folderList.length} bookmark folders`);
 				setFolders(folderList);
 			} catch (err) {
 				logger.error("Failed to load providers", err as Error);
