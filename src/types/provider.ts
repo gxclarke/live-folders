@@ -11,6 +11,31 @@ import type { BookmarkItem } from "./bookmark";
 export type BookmarkSortOrder = "alphabetical" | "created" | "updated";
 
 /**
+ * GitHub-specific filter options
+ */
+export interface GitHubFilters {
+	/** Include PRs created by me */
+	createdByMe?: boolean;
+	/** Include PRs where I'm requested for review */
+	reviewRequests?: boolean;
+}
+
+/**
+ * Jira-specific filter options
+ */
+export interface JiraFilters {
+	/** Include issues created by me */
+	createdByMe?: boolean;
+	/** Include issues assigned to me */
+	assignedToMe?: boolean;
+}
+
+/**
+ * Provider-specific filter options
+ */
+export type ProviderFilters = GitHubFilters | JiraFilters;
+
+/**
  * Provider configuration
  */
 export interface ProviderConfig {
@@ -22,6 +47,8 @@ export interface ProviderConfig {
 	lastSync?: number;
 	/** Sort order for bookmarks */
 	sortOrder?: BookmarkSortOrder;
+	/** Provider-specific filters */
+	filters?: ProviderFilters;
 	/** Provider-specific configuration */
 	settings?: Record<string, unknown>;
 }

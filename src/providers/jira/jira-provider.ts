@@ -566,11 +566,39 @@ export class JiraProvider implements Provider {
 		const user = await this.fetchUserInfo(token, authType);
 		const userIdentifier = this.instanceType === "cloud" ? user.accountId : user.name || user.key;
 
-		// JQL query for assigned issues that are not done
-		const jql =
-			this.instanceType === "cloud"
-				? `assignee = "${userIdentifier}" AND statusCategory != Done ORDER BY updated DESC`
-				: `assignee = ${userIdentifier} AND statusCategory != Done ORDER BY updated DESC`;
+		// Get filter configuration (default both to true)
+		const config = await this.getConfig();
+		const filters = config.filters as { createdByMe?: boolean; assignedToMe?: boolean } | undefined;
+		const includeCreatedByMe = filters?.createdByMe ?? true;
+		const includeAssignedToMe = filters?.assignedToMe ?? true;
+
+		// Build JQL query based on filters
+		const conditions: string[] = [];
+
+		if (includeCreatedByMe) {
+			const creatorCondition =
+				this.instanceType === "cloud"
+					? `reporter = "${userIdentifier}"`
+					: `reporter = ${userIdentifier}`;
+			conditions.push(creatorCondition);
+		}
+
+		if (includeAssignedToMe) {
+			const assigneeCondition =
+				this.instanceType === "cloud"
+					? `assignee = "${userIdentifier}"`
+					: `assignee = ${userIdentifier}`;
+			conditions.push(assigneeCondition);
+		}
+
+		// If no filters enabled, return empty
+		if (conditions.length === 0) {
+			this.logger.info("No filters enabled, returning empty list");
+			return [];
+		}
+
+		// Combine conditions with OR and add status filter
+		const jql = `(${conditions.join(" OR ")}) AND statusCategory != Done ORDER BY updated DESC`;
 
 		const searchParams = new URLSearchParams({
 			jql,
@@ -590,6 +618,7 @@ export class JiraProvider implements Provider {
 			endpoint,
 			instanceType: this.instanceType,
 			jql,
+			filters: { includeCreatedByMe, includeAssignedToMe },
 		});
 
 		const response = await fetch(endpoint, { headers });

@@ -6,6 +6,7 @@ import {
 	Card,
 	CardActions,
 	CardContent,
+	Checkbox,
 	CircularProgress,
 	Collapse,
 	Dialog,
@@ -14,6 +15,7 @@ import {
 	DialogContentText,
 	DialogTitle,
 	FormControl,
+	FormControlLabel,
 	IconButton,
 	InputLabel,
 	MenuItem,
@@ -45,6 +47,11 @@ interface ProviderData {
 	authenticated: boolean;
 	folderId?: string;
 	sortOrder?: "alphabetical" | "created" | "updated";
+	filters?: {
+		createdByMe?: boolean;
+		reviewRequests?: boolean;
+		assignedToMe?: boolean;
+	};
 	lastSync?: number;
 	status: ProviderStatus;
 }
@@ -129,6 +136,7 @@ export function ProvidersView() {
 						authenticated: status?.authenticated ?? false,
 						folderId: providerData?.folderId,
 						sortOrder: providerData?.config?.sortOrder ?? "alphabetical",
+						filters: providerData?.config?.filters ?? {},
 						lastSync: providerData?.lastSync,
 						status: status || {
 							id: provider.metadata.id,
@@ -176,6 +184,7 @@ export function ProvidersView() {
 							authenticated: status?.authenticated ?? provider.authenticated,
 							folderId: providerData?.folderId ?? provider.folderId,
 							sortOrder: providerData?.config?.sortOrder ?? provider.sortOrder,
+							filters: providerData?.config?.filters ?? provider.filters,
 							lastSync: providerData?.lastSync ?? provider.lastSync,
 							status: status || provider.status,
 						};
@@ -276,6 +285,37 @@ export function ProvidersView() {
 		} catch (err) {
 			logger.error(`Failed to update sort order for ${providerId}`, err as Error);
 			setError(err instanceof Error ? err.message : "Failed to update sort order");
+		}
+	};
+
+	// Update provider filters
+	const handleFilterChange = async (providerId: string, filterKey: string, value: boolean) => {
+		try {
+			const storage = StorageManager.getInstance();
+			const providerData = await storage.getProvider(providerId);
+
+			if (!providerData) {
+				throw new Error(`Provider ${providerId} not found`);
+			}
+
+			// Update filter while preserving ALL other fields
+			const updatedData = {
+				...providerData,
+				config: {
+					...providerData.config,
+					filters: {
+						...(providerData.config?.filters || {}),
+						[filterKey]: value,
+					},
+				},
+			};
+
+			await storage.saveProvider(providerId, updatedData);
+
+			logger.info(`Provider ${providerId} filter ${filterKey} updated to ${value}`);
+		} catch (err) {
+			logger.error(`Failed to update filter for ${providerId}`, err as Error);
+			setError(err instanceof Error ? err.message : "Failed to update filter");
 		}
 	};
 
@@ -630,6 +670,84 @@ export function ProvidersView() {
 												<MenuItem value="updated">Last Updated (Newest First)</MenuItem>
 											</Select>
 										</FormControl>
+									)}
+									{/* Filter options */}
+									{provider.authenticated && provider.folderId && (
+										<Box sx={{ mb: 2 }}>
+											<Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+												Filter Items
+											</Typography>
+											<Stack spacing={0.5}>
+												{provider.id === "github" && (
+													<>
+														<FormControlLabel
+															control={
+																<Checkbox
+																	checked={provider.filters?.createdByMe ?? true}
+																	onChange={(e) =>
+																		handleFilterChange(provider.id, "createdByMe", e.target.checked)
+																	}
+																	disabled={!provider.enabled}
+																	size="small"
+																/>
+															}
+															label="Created by me"
+														/>
+														<FormControlLabel
+															control={
+																<Checkbox
+																	checked={provider.filters?.reviewRequests ?? true}
+																	onChange={(e) =>
+																		handleFilterChange(
+																			provider.id,
+																			"reviewRequests",
+																			e.target.checked,
+																		)
+																	}
+																	disabled={!provider.enabled}
+																	size="small"
+																/>
+															}
+															label="Review requests"
+														/>
+													</>
+												)}
+												{provider.id === "jira" && (
+													<>
+														<FormControlLabel
+															control={
+																<Checkbox
+																	checked={provider.filters?.createdByMe ?? true}
+																	onChange={(e) =>
+																		handleFilterChange(provider.id, "createdByMe", e.target.checked)
+																	}
+																	disabled={!provider.enabled}
+																	size="small"
+																/>
+															}
+															label="Created by me"
+														/>
+														<FormControlLabel
+															control={
+																<Checkbox
+																	checked={provider.filters?.assignedToMe ?? true}
+																	onChange={(e) =>
+																		handleFilterChange(
+																			provider.id,
+																			"assignedToMe",
+																			e.target.checked,
+																		)
+																	}
+																	disabled={!provider.enabled}
+																	size="small"
+																/>
+															}
+															label="Assigned to me"
+														/>
+													</>
+												)}
+											</Stack>
+										</Box>
 									)}{" "}
 									{/* Last sync info */}
 									{provider.lastSync && (

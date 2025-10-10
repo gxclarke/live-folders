@@ -274,19 +274,44 @@ export class GitHubProvider implements Provider {
 		}
 
 		try {
-			const [authoredPRs, reviewPRs] = await Promise.all([
-				this.fetchAuthoredPRs(token),
-				this.fetchReviewRequestedPRs(token),
-			]);
+			// Get filter configuration (default both to true)
+			const config = await this.getConfig();
+			const filters = config.filters as
+				| { createdByMe?: boolean; reviewRequests?: boolean }
+				| undefined;
+			const includeCreatedByMe = filters?.createdByMe ?? true;
+			const includeReviewRequests = filters?.reviewRequests ?? true;
 
-			// Combine and deduplicate
-			const allPRs = [...authoredPRs, ...reviewPRs];
+			// Fetch based on filters
+			const fetchPromises: Promise<GitHubPR[]>[] = [];
+
+			if (includeCreatedByMe) {
+				fetchPromises.push(this.fetchAuthoredPRs(token));
+			}
+
+			if (includeReviewRequests) {
+				fetchPromises.push(this.fetchReviewRequestedPRs(token));
+			}
+
+			// If no filters enabled, return empty
+			if (fetchPromises.length === 0) {
+				this.logger.info("No filters enabled, returning empty list");
+				return [];
+			}
+
+			const results = await Promise.all(fetchPromises);
+			const allPRs = results.flat();
+
+			// Deduplicate
 			const uniquePRs = this.deduplicatePRs(allPRs);
 
 			// Convert to BookmarkItems
 			const items = uniquePRs.map((pr) => this.prToBookmarkItem(pr));
 
-			this.logger.info("Fetched pull requests", { count: items.length });
+			this.logger.info("Fetched pull requests", {
+				count: items.length,
+				filters: { includeCreatedByMe, includeReviewRequests },
+			});
 			return items;
 		} catch (error) {
 			this.logger.error("Failed to fetch pull requests", { error }, error as Error);
