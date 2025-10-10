@@ -1,4 +1,4 @@
-import { CheckCircle, ExpandMore, Settings, Sync, Warning } from "@mui/icons-material";
+import { Add, CheckCircle, ExpandMore, Settings, Sync, Warning } from "@mui/icons-material";
 import {
 	Alert,
 	Box,
@@ -8,6 +8,11 @@ import {
 	CardContent,
 	CircularProgress,
 	Collapse,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogContentText,
+	DialogTitle,
 	FormControl,
 	IconButton,
 	InputLabel,
@@ -19,7 +24,7 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ProviderListSkeleton } from "@/components/Skeletons";
 import type { ProviderStatus } from "@/services/provider-registry";
@@ -39,6 +44,7 @@ interface ProviderData {
 	enabled: boolean;
 	authenticated: boolean;
 	folderId?: string;
+	sortOrder?: "alphabetical" | "created" | "updated";
 	lastSync?: number;
 	status: ProviderStatus;
 }
@@ -56,7 +62,43 @@ export function ProvidersView() {
 	const [syncing, setSyncing] = useState<Set<string>>(new Set());
 	const [expandedSettings, setExpandedSettings] = useState<Set<string>>(new Set());
 	const [githubPAT, setGithubPAT] = useState<string>("");
+	const [jiraBaseUrl, setJiraBaseUrl] = useState<string>("");
+	const [jiraEmail, setJiraEmail] = useState<string>("");
+	const [jiraApiToken, setJiraApiToken] = useState<string>("");
+	const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
+	const [newFolderName, setNewFolderName] = useState("");
+	const [creatingFolder, setCreatingFolder] = useState(false);
 	const { authenticating, error: authError, authenticate, clearError } = useAuthentication();
+
+	// Fetch bookmark folders (with alphabetical sorting)
+	const fetchFolders = useCallback(async () => {
+		try {
+			const bookmarkFolders = await browser.bookmarks.getTree();
+			const folderList: BookmarkFolder[] = [];
+
+			const extractFolders = (nodes: browser.Bookmarks.BookmarkTreeNode[]) => {
+				for (const node of nodes) {
+					// A node is a folder if it doesn't have a url property
+					if (!node.url) {
+						folderList.push({ id: node.id, title: node.title || "Untitled" });
+						if (node.children) {
+							extractFolders(node.children);
+						}
+					}
+				}
+			};
+
+			extractFolders(bookmarkFolders);
+
+			// Sort folders alphabetically by title
+			folderList.sort((a, b) => a.title.localeCompare(b.title));
+
+			logger.info(`Loaded ${folderList.length} bookmark folders`);
+			setFolders(folderList);
+		} catch (err) {
+			logger.error("Failed to load bookmark folders", err as Error);
+		}
+	}, []);
 
 	// Load providers and bookmark folders
 	useEffect(() => {
@@ -86,6 +128,7 @@ export function ProvidersView() {
 						enabled: providerData?.config?.enabled ?? false,
 						authenticated: status?.authenticated ?? false,
 						folderId: providerData?.folderId,
+						sortOrder: providerData?.config?.sortOrder ?? "alphabetical",
 						lastSync: providerData?.lastSync,
 						status: status || {
 							id: provider.metadata.id,
@@ -98,26 +141,8 @@ export function ProvidersView() {
 
 				setProviders(providerList);
 
-				// Load bookmark folders
-				const bookmarkFolders = await browser.bookmarks.getTree();
-				const folderList: BookmarkFolder[] = [];
-
-				const extractFolders = (nodes: browser.Bookmarks.BookmarkTreeNode[]) => {
-					for (const node of nodes) {
-						// A node is a folder if it doesn't have a url property
-						// (bookmarks have urls, folders don't)
-						if (!node.url) {
-							folderList.push({ id: node.id, title: node.title || "Untitled" });
-							if (node.children) {
-								extractFolders(node.children);
-							}
-						}
-					}
-				};
-
-				extractFolders(bookmarkFolders);
-				logger.info(`Loaded ${folderList.length} bookmark folders`);
-				setFolders(folderList);
+				// Load bookmark folders (sorted alphabetically)
+				await fetchFolders();
 			} catch (err) {
 				logger.error("Failed to load providers", err as Error);
 				setError(err instanceof Error ? err.message : "Failed to load data");
@@ -150,6 +175,7 @@ export function ProvidersView() {
 							enabled: providerData?.config?.enabled ?? provider.enabled,
 							authenticated: status?.authenticated ?? provider.authenticated,
 							folderId: providerData?.folderId ?? provider.folderId,
+							sortOrder: providerData?.config?.sortOrder ?? provider.sortOrder,
 							lastSync: providerData?.lastSync ?? provider.lastSync,
 							status: status || provider.status,
 						};
@@ -163,7 +189,7 @@ export function ProvidersView() {
 		return () => {
 			chrome.storage.onChanged.removeListener(handleStorageChange);
 		};
-	}, []);
+	}, [fetchFolders]);
 
 	// Toggle provider enabled state
 	const handleToggleEnabled = async (providerId: string, enabled: boolean) => {
@@ -219,6 +245,37 @@ export function ProvidersView() {
 		} catch (err) {
 			logger.error(`Failed to update folder for ${providerId}`, err as Error);
 			setError(err instanceof Error ? err.message : "Failed to update folder");
+		}
+	};
+
+	// Update provider sort order
+	const handleSortOrderChange = async (
+		providerId: string,
+		sortOrder: "alphabetical" | "created" | "updated",
+	) => {
+		try {
+			const storage = StorageManager.getInstance();
+			const providerData = await storage.getProvider(providerId);
+
+			if (!providerData) {
+				throw new Error(`Provider ${providerId} not found`);
+			}
+
+			// Update sortOrder while preserving ALL other fields
+			const updatedData = {
+				...providerData,
+				config: {
+					...providerData.config,
+					sortOrder,
+				},
+			};
+
+			await storage.saveProvider(providerId, updatedData);
+
+			logger.info(`Provider ${providerId} sort order updated to ${sortOrder}`);
+		} catch (err) {
+			logger.error(`Failed to update sort order for ${providerId}`, err as Error);
+			setError(err instanceof Error ? err.message : "Failed to update sort order");
 		}
 	};
 
@@ -323,6 +380,92 @@ export function ProvidersView() {
 		}
 	};
 
+	// Save Jira API Token configuration
+	const handleSaveJiraConfig = async () => {
+		try {
+			if (!jiraBaseUrl.trim() || !jiraEmail.trim() || !jiraApiToken.trim()) {
+				setError("Please fill in all Jira configuration fields");
+				return;
+			}
+
+			// Validate URL format
+			try {
+				new URL(jiraBaseUrl);
+			} catch {
+				setError("Please enter a valid Jira URL (e.g., https://yourcompany.atlassian.net)");
+				return;
+			}
+
+			const storage = StorageManager.getInstance();
+			const providerData = await storage.getProvider("jira");
+
+			if (!providerData) {
+				setError("Jira provider not initialized. Please reload the extension and try again.");
+				return;
+			}
+
+			// Add Jira config - preserve ALL existing fields
+			const updatedConfig = {
+				...providerData.config,
+				baseUrl: jiraBaseUrl,
+				username: jiraEmail,
+				apiToken: jiraApiToken,
+				authType: "api-token",
+				instanceType: "cloud",
+			};
+
+			const updatedData = {
+				...providerData,
+				config: updatedConfig as ProviderConfig,
+			};
+
+			await storage.saveProvider("jira", updatedData);
+
+			logger.info("Jira configuration saved successfully");
+			setJiraBaseUrl("");
+			setJiraEmail("");
+			setJiraApiToken("");
+
+			setError(null);
+		} catch (err) {
+			logger.error("Failed to save Jira configuration", err as Error);
+			setError(err instanceof Error ? err.message : "Failed to save configuration");
+		}
+	};
+
+	// Create a new bookmark folder
+	const handleCreateFolder = async () => {
+		if (!newFolderName.trim()) {
+			setError("Folder name cannot be empty");
+			return;
+		}
+
+		try {
+			setCreatingFolder(true);
+			setError(null);
+
+			// Create folder under "Other Bookmarks" (id: "2")
+			const newFolder = await browser.bookmarks.create({
+				parentId: "2", // "Other Bookmarks" folder
+				title: newFolderName.trim(),
+			});
+
+			logger.info(`Created new folder: ${newFolder.title}`, { id: newFolder.id });
+
+			// Refresh folder list
+			await fetchFolders();
+
+			// Close dialog and reset state
+			setCreateFolderDialogOpen(false);
+			setNewFolderName("");
+		} catch (err) {
+			logger.error("Failed to create folder", err as Error);
+			setError(err instanceof Error ? err.message : "Failed to create folder");
+		} finally {
+			setCreatingFolder(false);
+		}
+	};
+
 	// Authenticate provider
 	const handleConnect = async (providerId: string) => {
 		try {
@@ -414,7 +557,6 @@ export function ProvidersView() {
 											disabled={!provider.authenticated}
 										/>
 									</Box>
-
 									{/* Status indicator */}
 									<Box display="flex" alignItems="center" gap={1} mb={2}>
 										{provider.authenticated ? (
@@ -433,7 +575,6 @@ export function ProvidersView() {
 											</>
 										)}
 									</Box>
-
 									{/* Folder selection */}
 									{provider.authenticated && (
 										<FormControl fullWidth size="small" sx={{ mb: 2 }}>
@@ -443,8 +584,22 @@ export function ProvidersView() {
 												label="Bookmark Folder"
 												onChange={(e) => handleFolderChange(provider.id, e.target.value)}
 												disabled={!provider.enabled}
+												onOpen={fetchFolders} // Refresh folders when dropdown opens
 											>
-												<MenuItem value="">
+												<MenuItem
+													value=""
+													onClick={() => setCreateFolderDialogOpen(true)}
+													sx={{
+														borderBottom: "1px solid",
+														borderColor: "divider",
+														color: "primary.main",
+														fontWeight: 500,
+													}}
+												>
+													<Add fontSize="small" sx={{ mr: 1 }} />
+													Create New Folder...
+												</MenuItem>
+												<MenuItem value="" disabled>
 													<em>Select a folder...</em>
 												</MenuItem>
 												{folders.map((folder) => (
@@ -455,14 +610,33 @@ export function ProvidersView() {
 											</Select>
 										</FormControl>
 									)}
-
+									{/* Sort order selection */}
+									{provider.authenticated && provider.folderId && (
+										<FormControl fullWidth size="small" sx={{ mb: 2 }}>
+											<InputLabel>Sort Bookmarks By</InputLabel>
+											<Select
+												value={provider.sortOrder || "alphabetical"}
+												label="Sort Bookmarks By"
+												onChange={(e) =>
+													handleSortOrderChange(
+														provider.id,
+														e.target.value as "alphabetical" | "created" | "updated",
+													)
+												}
+												disabled={!provider.enabled}
+											>
+												<MenuItem value="alphabetical">Alphabetical (A-Z)</MenuItem>
+												<MenuItem value="created">Creation Date (Oldest First)</MenuItem>
+												<MenuItem value="updated">Last Updated (Newest First)</MenuItem>
+											</Select>
+										</FormControl>
+									)}{" "}
 									{/* Last sync info */}
 									{provider.lastSync && (
 										<Typography variant="caption" color="text.secondary">
 											Last synced: {new Date(provider.lastSync).toLocaleString()}
 										</Typography>
 									)}
-
 									{/* Provider-specific settings */}
 									{!provider.authenticated && provider.id === "github" && (
 										<Box mt={2}>
@@ -522,6 +696,85 @@ export function ProvidersView() {
 											</Collapse>
 										</Box>
 									)}
+									{/* Jira API Token Configuration */}
+									{!provider.authenticated && provider.id === "jira" && (
+										<Box mt={2}>
+											<Box display="flex" alignItems="center" gap={1} mb={1}>
+												<IconButton
+													size="small"
+													onClick={() => handleToggleSettings(provider.id)}
+													sx={{
+														transform: expandedSettings.has(provider.id)
+															? "rotate(180deg)"
+															: "rotate(0deg)",
+														transition: "transform 0.3s",
+													}}
+												>
+													<ExpandMore />
+												</IconButton>
+												<Typography variant="body2" color="text.secondary">
+													API Token Configuration
+												</Typography>
+											</Box>
+
+											<Collapse in={expandedSettings.has(provider.id)}>
+												<Stack spacing={2} mt={1}>
+													<Alert severity="info" sx={{ fontSize: "0.875rem" }}>
+														Enter your Jira Cloud details. You can create an API token at{" "}
+														<a
+															href="https://id.atlassian.com/manage-profile/security/api-tokens"
+															target="_blank"
+															rel="noopener noreferrer"
+														>
+															Atlassian Account Security
+														</a>
+														.
+													</Alert>
+													<TextField
+														fullWidth
+														size="small"
+														type="url"
+														label="Jira Base URL"
+														placeholder="https://yourcompany.atlassian.net"
+														value={jiraBaseUrl}
+														onChange={(e) => setJiraBaseUrl(e.target.value)}
+														helperText="Your Jira Cloud instance URL"
+													/>
+													<TextField
+														fullWidth
+														size="small"
+														type="email"
+														label="Email Address"
+														placeholder="you@company.com"
+														value={jiraEmail}
+														onChange={(e) => setJiraEmail(e.target.value)}
+														helperText="Your Jira account email"
+													/>
+													<TextField
+														fullWidth
+														size="small"
+														type="password"
+														label="API Token"
+														placeholder="Your Jira API token"
+														value={jiraApiToken}
+														onChange={(e) => setJiraApiToken(e.target.value)}
+														helperText="This token will be stored securely in your browser"
+													/>
+													<Button
+														variant="outlined"
+														size="small"
+														onClick={handleSaveJiraConfig}
+														disabled={
+															!jiraBaseUrl.trim() || !jiraEmail.trim() || !jiraApiToken.trim()
+														}
+														startIcon={<Settings />}
+													>
+														Save Configuration
+													</Button>
+												</Stack>
+											</Collapse>
+										</Box>
+									)}
 								</CardContent>
 
 								<CardActions>
@@ -566,6 +819,60 @@ export function ProvidersView() {
 					})}
 				</Stack>
 			)}
+
+			{/* Folder Creation Dialog */}
+			<Dialog
+				open={createFolderDialogOpen}
+				onClose={() => {
+					setCreateFolderDialogOpen(false);
+					setNewFolderName("");
+					setError(null);
+				}}
+				maxWidth="sm"
+				fullWidth
+			>
+				<DialogTitle>Create New Bookmark Folder</DialogTitle>
+				<DialogContent>
+					<DialogContentText sx={{ mb: 2 }}>
+						Enter a name for the new bookmark folder. It will be created under "Other Bookmarks".
+					</DialogContentText>
+					<TextField
+						autoFocus
+						fullWidth
+						label="Folder Name"
+						value={newFolderName}
+						onChange={(e) => setNewFolderName(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" && newFolderName.trim()) {
+								handleCreateFolder();
+							}
+						}}
+						error={!!error}
+						helperText={error}
+						disabled={creatingFolder}
+					/>
+				</DialogContent>
+				<DialogActions>
+					<Button
+						onClick={() => {
+							setCreateFolderDialogOpen(false);
+							setNewFolderName("");
+							setError(null);
+						}}
+						disabled={creatingFolder}
+					>
+						Cancel
+					</Button>
+					<Button
+						onClick={handleCreateFolder}
+						variant="contained"
+						disabled={!newFolderName.trim() || creatingFolder}
+						startIcon={creatingFolder ? <CircularProgress size={16} /> : undefined}
+					>
+						{creatingFolder ? "Creating..." : "Create"}
+					</Button>
+				</DialogActions>
+			</Dialog>
 		</Stack>
 	);
 }

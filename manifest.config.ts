@@ -31,6 +31,11 @@ export default defineManifest({
 		"identity",
 		"notifications",
 	],
+	host_permissions: [
+		"https://api.github.com/*",
+		"https://*.atlassian.net/*", // Jira Cloud instances
+		"https://*.jira.com/*", // Alternative Jira domains
+	],
 	side_panel: {
 		default_path: "src/sidepanel/index.html",
 	},

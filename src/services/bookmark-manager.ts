@@ -178,12 +178,17 @@ export class BookmarkManager {
 	/**
 	 * Create a bookmark
 	 */
-	public async createBookmark(folderId: string, item: BookmarkItem): Promise<string> {
+	public async createBookmark(
+		folderId: string,
+		item: BookmarkItem,
+		index?: number,
+	): Promise<string> {
 		try {
 			const bookmark = await chrome.bookmarks.create({
 				parentId: folderId,
 				title: item.title,
 				url: item.url,
+				index, // Optional position in the folder
 			});
 
 			logger.debug(`Created bookmark: ${item.title}`);
@@ -253,17 +258,36 @@ export class BookmarkManager {
 	/**
 	 * Create multiple bookmarks (batch operation)
 	 */
-	public async batchCreate(folderId: string, items: BookmarkItem[]): Promise<string[]> {
+	public async batchCreate(
+		folderId: string,
+		items: BookmarkItem[],
+		sortOrder: "alphabetical" | "created" | "updated" = "alphabetical",
+	): Promise<string[]> {
 		const bookmarkIds: string[] = [];
 		const errors: Error[] = [];
 
-		for (const item of items) {
+		// Sort items based on the sort order
+		const sortedItems = [...items].sort((a, b) => {
+			switch (sortOrder) {
+				case "alphabetical":
+					return a.title.localeCompare(b.title);
+				case "created":
+					return (a.createdAt || 0) - (b.createdAt || 0);
+				case "updated":
+					return (b.updatedAt || 0) - (a.updatedAt || 0); // Most recent first
+				default:
+					return 0;
+			}
+		});
+
+		for (let i = 0; i < sortedItems.length; i++) {
+			const item = sortedItems[i];
 			try {
-				const id = await this.createBookmark(folderId, item);
+				const id = await this.createBookmark(folderId, item, i);
 				bookmarkIds.push(id);
 
 				// Small delay to avoid rate limiting (Firefox: ~100 ops/sec)
-				if (items.length > 10) {
+				if (sortedItems.length > 10) {
 					await new Promise((resolve) => setTimeout(resolve, 10));
 				}
 			} catch (error) {
@@ -276,7 +300,7 @@ export class BookmarkManager {
 				`Batch create completed with ${errors.length} errors out of ${items.length} items`,
 			);
 		} else {
-			logger.info(`Batch created ${bookmarkIds.length} bookmarks`);
+			logger.info(`Batch created ${bookmarkIds.length} bookmarks (sorted by ${sortOrder})`);
 		}
 
 		return bookmarkIds;
@@ -340,6 +364,73 @@ export class BookmarkManager {
 			);
 		} else {
 			logger.info(`Batch updated ${updates.length} bookmarks`);
+		}
+	}
+
+	/**
+	 * Reorder all bookmarks in a folder according to sort order
+	 */
+	public async reorderFolder(
+		folderId: string,
+		items: BookmarkItem[],
+		sortOrder: "alphabetical" | "created" | "updated" = "alphabetical",
+	): Promise<void> {
+		try {
+			// Get current bookmarks in the folder
+			const currentBookmarks = await this.getFolderContents(folderId);
+
+			// Create a map of URL -> BookmarkItem for quick lookup
+			const itemMap = new Map(items.map((item) => [item.url, item]));
+
+			// Build a list of bookmarks with their metadata
+			const bookmarksWithMetadata = currentBookmarks
+				.filter((bookmark) => bookmark.url && itemMap.has(bookmark.url))
+				.map((bookmark) => {
+					const item = itemMap.get(bookmark.url!)!;
+					return {
+						id: bookmark.id,
+						title: bookmark.title || "",
+						createdAt: item.createdAt || 0,
+						updatedAt: item.updatedAt || 0,
+					};
+				});
+
+			// Sort based on the sort order
+			bookmarksWithMetadata.sort((a, b) => {
+				switch (sortOrder) {
+					case "alphabetical":
+						return a.title.localeCompare(b.title);
+					case "created":
+						return a.createdAt - b.createdAt;
+					case "updated":
+						return b.updatedAt - a.updatedAt; // Most recent first
+					default:
+						return 0;
+				}
+			});
+
+			// Move each bookmark to its correct position
+			for (let i = 0; i < bookmarksWithMetadata.length; i++) {
+				const bookmark = bookmarksWithMetadata[i];
+				try {
+					await chrome.bookmarks.move(bookmark.id, {
+						parentId: folderId,
+						index: i,
+					});
+
+					// Small delay to avoid overwhelming the API
+					if (bookmarksWithMetadata.length > 10) {
+						await new Promise((resolve) => setTimeout(resolve, 5));
+					}
+				} catch (error) {
+					logger.error(`Failed to move bookmark ${bookmark.id}`, error);
+				}
+			}
+
+			logger.info(`Reordered ${bookmarksWithMetadata.length} bookmarks by ${sortOrder}`);
+		} catch (error) {
+			logger.error("Failed to reorder folder", error);
+			throw error;
 		}
 	}
 

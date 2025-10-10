@@ -132,9 +132,13 @@ export class SyncEngine {
 			logger.debug(`Diff: +${diff.toAdd.length} ~${diff.toUpdate.length} -${diff.toDelete.length}`);
 
 			// 5. Apply changes
-			await this.applyChanges(providerData.folderId, diff);
+			const sortOrder = providerData.config?.sortOrder || "alphabetical";
+			await this.applyChanges(providerData.folderId, diff, sortOrder);
 
-			// 6. Update metadata
+			// 6. Reorder all bookmarks in the folder according to sort preference
+			await this.bookmarkManager.reorderFolder(providerData.folderId, items, sortOrder);
+
+			// 7. Update metadata
 			await this.setLastSyncTime(providerId, Date.now());
 
 			const duration = Date.now() - startTime;
@@ -218,7 +222,11 @@ export class SyncEngine {
 	/**
 	 * Apply changes to bookmarks
 	 */
-	public async applyChanges(folderId: string, diff: SyncDiff): Promise<void> {
+	public async applyChanges(
+		folderId: string,
+		diff: SyncDiff,
+		sortOrder: "alphabetical" | "created" | "updated" = "alphabetical",
+	): Promise<void> {
 		// Delete first (free up space)
 		if (diff.toDelete.length > 0) {
 			logger.debug(`Deleting ${diff.toDelete.length} bookmarks`);
@@ -235,10 +243,10 @@ export class SyncEngine {
 			await this.bookmarkManager.batchUpdate(updates);
 		}
 
-		// Finally add new items
+		// Finally add new items (sorted according to preference)
 		if (diff.toAdd.length > 0) {
-			logger.debug(`Adding ${diff.toAdd.length} bookmarks`);
-			await this.bookmarkManager.batchCreate(folderId, diff.toAdd);
+			logger.debug(`Adding ${diff.toAdd.length} bookmarks (sorted by ${sortOrder})`);
+			await this.bookmarkManager.batchCreate(folderId, diff.toAdd, sortOrder);
 		}
 
 		logger.info(

@@ -175,20 +175,30 @@ export class JiraProvider implements Provider {
 	 * Authenticate with Jira
 	 */
 	public async authenticate(): Promise<AuthResult> {
-		this.logger.info("Authenticating with Jira", { authType: this.authType });
+		// Re-read config to get the latest settings (in case they were changed after initialization)
+		const config = (await this.getConfig()) as JiraProviderConfig;
+		const authType = config.authType || this.authType;
+
+		// Update instance variables with latest config
+		if (config.baseUrl) {
+			this.baseUrl = this.normalizeBaseUrl(config.baseUrl);
+			this.instanceType = this.detectInstanceType(this.baseUrl);
+		}
+
+		this.logger.info("Authenticating with Jira", { authType, baseUrl: this.baseUrl });
 
 		try {
-			if (this.authType === "oauth") {
+			if (authType === "oauth") {
 				return await this.authenticateOAuth();
 			}
-			if (this.authType === "api-token") {
+			if (authType === "api-token") {
 				return await this.authenticateApiToken();
 			}
-			if (this.authType === "basic") {
+			if (authType === "basic") {
 				return await this.authenticateBasic();
 			}
 
-			throw new Error(`Unsupported auth type: ${this.authType}`);
+			throw new Error(`Unsupported auth type: ${authType}`);
 		} catch (error) {
 			this.logger.error("Authentication failed", { error }, error as Error);
 			throw error;
@@ -247,9 +257,27 @@ export class JiraProvider implements Provider {
 			throw new Error("API token and username are required for API token authentication");
 		}
 
+		if (!config.baseUrl) {
+			throw new Error("Jira base URL is required for API token authentication");
+		}
+
+		this.logger.info("Authenticating with API token", {
+			baseUrl: config.baseUrl,
+			username: config.username,
+			instanceType: this.instanceType,
+		});
+
 		// Verify credentials by fetching user info
 		const token = btoa(`${config.username}:${config.apiToken}`);
-		const user = await this.fetchUserInfo(token, "basic");
+
+		let user: JiraUser;
+		try {
+			user = await this.fetchUserInfo(token, "basic");
+			this.logger.info("User info fetched successfully", { user });
+		} catch (error) {
+			this.logger.error("Failed to fetch user info", { error, baseUrl: this.baseUrl });
+			throw error;
+		}
 
 		// Store auth state manually (no OAuth tokens)
 		const authState = {
@@ -450,6 +478,21 @@ export class JiraProvider implements Provider {
 	}
 
 	/**
+	 * Normalize base URL by removing trailing slashes and ensuring protocol
+	 */
+	private normalizeBaseUrl(url: string): string {
+		// Remove trailing slashes
+		let normalized = url.trim().replace(/\/+$/, "");
+
+		// Ensure protocol
+		if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+			normalized = `https://${normalized}`;
+		}
+
+		return normalized;
+	}
+
+	/**
 	 * Detect Jira instance type from base URL
 	 */
 	private detectInstanceType(baseUrl: string): JiraInstanceType {
@@ -482,9 +525,22 @@ export class JiraProvider implements Provider {
 				? `${this.baseUrl}/rest/api/3/myself`
 				: `${this.baseUrl}/rest/api/2/myself`;
 
+		this.logger.info("Fetching user info from Jira", {
+			endpoint,
+			instanceType: this.instanceType,
+			authType,
+		});
+
 		const response = await fetch(endpoint, { headers });
 
 		if (!response.ok) {
+			const errorText = await response.text();
+			this.logger.error("Failed to fetch user info from Jira", {
+				status: response.status,
+				statusText: response.statusText,
+				endpoint,
+				errorBody: errorText,
+			});
 			throw new Error(`Failed to fetch user info: ${response.status} ${response.statusText}`);
 		}
 
@@ -524,14 +580,28 @@ export class JiraProvider implements Provider {
 		});
 
 		// Different API versions for Cloud vs Server
+		// Cloud uses the new /search/jql endpoint (deprecated /search in 2024)
 		const endpoint =
 			this.instanceType === "cloud"
-				? `${this.baseUrl}/rest/api/3/search?${searchParams}`
+				? `${this.baseUrl}/rest/api/3/search/jql?${searchParams}`
 				: `${this.baseUrl}/rest/api/2/search?${searchParams}`;
+
+		this.logger.info("Fetching issues from Jira", {
+			endpoint,
+			instanceType: this.instanceType,
+			jql,
+		});
 
 		const response = await fetch(endpoint, { headers });
 
 		if (!response.ok) {
+			const errorText = await response.text();
+			this.logger.error("Jira API error", {
+				status: response.status,
+				statusText: response.statusText,
+				endpoint,
+				errorBody: errorText,
+			});
 			throw new Error(`Failed to fetch issues: ${response.status} ${response.statusText}`);
 		}
 

@@ -6,6 +6,11 @@
 import type { BookmarkItem } from "./bookmark";
 
 /**
+ * Bookmark sort order options
+ */
+export type BookmarkSortOrder = "alphabetical" | "created" | "updated";
+
+/**
  * Provider configuration
  */
 export interface ProviderConfig {
@@ -15,6 +20,8 @@ export interface ProviderConfig {
 	folderId?: string;
 	/** Last successful sync timestamp */
 	lastSync?: number;
+	/** Sort order for bookmarks */
+	sortOrder?: BookmarkSortOrder;
 	/** Provider-specific configuration */
 	settings?: Record<string, unknown>;
 }
