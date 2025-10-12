@@ -8,7 +8,7 @@ const browserMocks = createBrowserMocks();
 
 // Define browser on globalThis
 declare global {
-	var browser: Partial<Browser>;
+  var browser: Partial<Browser>;
 }
 
 globalThis.browser = browserMocks;
@@ -16,26 +16,26 @@ globalThis.browser = browserMocks;
 
 // Mock window.crypto for CSRF token generation
 Object.defineProperty(globalThis, "crypto", {
-	value: {
-		getRandomValues: (arr: Uint8Array) => {
-			for (let i = 0; i < arr.length; i++) {
-				arr[i] = Math.floor(Math.random() * 256);
-			}
-			return arr;
-		},
-		randomUUID: () => {
-			return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-				const r = (Math.random() * 16) | 0;
-				const v = c === "x" ? r : (r & 0x3) | 0x8;
-				return v.toString(16);
-			});
-		},
-		subtle: {} as SubtleCrypto,
-	},
+  value: {
+    getRandomValues: (arr: Uint8Array) => {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = Math.floor(Math.random() * 256);
+      }
+      return arr;
+    },
+    randomUUID: () => {
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    },
+    subtle: {} as SubtleCrypto,
+  },
 });
 
 // Clean up after each test
 afterEach(() => {
-	vi.clearAllMocks();
-	vi.clearAllTimers();
+  vi.clearAllMocks();
+  vi.clearAllTimers();
 });

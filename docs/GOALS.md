@@ -26,8 +26,10 @@ Then, once a minute it will query the Jira API to find all work items that are a
 
 ## Extensibility
 
-The extension should be extensible so users can connect other external systems.
+The extension should be extensible so users can connect other external systems (i.e. new providers can be added).
 
-## Enhancement: configuration options and actions
+## More details
 
 Each live folder should support the user refreshing immediately.
+
+Each provider supports configuration settings to tailor filtering behavior.
