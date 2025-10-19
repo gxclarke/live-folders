@@ -129,9 +129,14 @@ export class JiraProvider implements Provider {
   private readonly OAUTH_CONFIG = {
     authUrl: "https://auth.atlassian.com/authorize",
     tokenUrl: "https://auth.atlassian.com/oauth/token",
-    clientId: "", // Will be set from settings/environment
+    clientId: import.meta.env.VITE_JIRA_OAUTH_CLIENT_ID || "",
+    clientSecret: import.meta.env.VITE_JIRA_OAUTH_CLIENT_SECRET || "",
     redirectUri: browser.identity.getRedirectURL("jira"),
     scopes: ["read:jira-user", "read:jira-work", "offline_access"],
+    additionalParams: {
+      audience: "api.atlassian.com",
+      prompt: "consent",
+    },
   };
 
   constructor() {
@@ -167,6 +172,16 @@ export class JiraProvider implements Provider {
       this.authType = jiraConfig.authType;
     }
 
+    // Load OAuth credentials from environment variables
+    if (this.authType === "oauth" && !this.OAUTH_CONFIG.clientId) {
+      this.logger.warn(
+        "Jira OAuth Client ID not configured. Set VITE_JIRA_OAUTH_CLIENT_ID environment variable.",
+      );
+      this.logger.info(
+        "OAuth authentication will not be available. Use API Token or Basic Auth instead.",
+      );
+    }
+
     // Register OAuth config with AuthManager (for OAuth flow)
     if (this.authType === "oauth") {
       authManager.registerOAuthConfig(this.PROVIDER_ID, this.OAUTH_CONFIG);
@@ -176,6 +191,7 @@ export class JiraProvider implements Provider {
       baseUrl: this.baseUrl,
       authType: this.authType,
       instanceType: this.instanceType,
+      oauthConfigured: !!this.OAUTH_CONFIG.clientId,
     });
   }
 

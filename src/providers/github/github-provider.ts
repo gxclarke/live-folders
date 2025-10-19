@@ -84,7 +84,8 @@ export class GitHubProvider implements Provider {
   private readonly OAUTH_CONFIG = {
     authUrl: "https://github.com/login/oauth/authorize",
     tokenUrl: "https://github.com/login/oauth/access_token",
-    clientId: "", // Will be set from settings/environment
+    clientId: import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID || "",
+    clientSecret: import.meta.env.VITE_GITHUB_OAUTH_CLIENT_SECRET || "",
     redirectUri: browser.identity.getRedirectURL("github"),
     scopes: ["repo", "read:user", "read:org"],
   };
@@ -110,13 +111,22 @@ export class GitHubProvider implements Provider {
       });
     }
 
-    // TODO: Get client ID from settings/environment
-    // For now, this needs to be configured separately
+    // Load OAuth credentials from environment variables
+    if (!this.OAUTH_CONFIG.clientId) {
+      this.logger.warn(
+        "GitHub OAuth Client ID not configured. Set VITE_GITHUB_OAUTH_CLIENT_ID environment variable.",
+      );
+      this.logger.info(
+        "OAuth authentication will not be available. Use Personal Access Token instead.",
+      );
+    }
 
     // Register OAuth config with AuthManager
     authManager.registerOAuthConfig(this.PROVIDER_ID, this.OAUTH_CONFIG);
 
-    this.logger.info("GitHub provider initialized");
+    this.logger.info("GitHub provider initialized", {
+      oauthConfigured: !!this.OAUTH_CONFIG.clientId,
+    });
   }
 
   /**
