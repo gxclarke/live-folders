@@ -147,6 +147,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "DEBUG_REGISTRY") {
+    // Debug provider registry state
+    const registry = ProviderRegistry.getInstance();
+    const debugInfo = {
+      providerIds: registry.getProviderIds(),
+      providerStatuses: registry.getAllProviderStatuses(),
+      providerCount: registry.getAllProviders().length,
+    };
+
+    logger.info("Registry debug info", debugInfo);
+    sendResponse({ success: true, data: debugInfo });
+    return true;
+  }
+
   // Unknown message type
   return false;
 });
