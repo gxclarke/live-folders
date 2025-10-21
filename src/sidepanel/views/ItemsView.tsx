@@ -83,6 +83,13 @@ export function ItemsView() {
               const browserBookmark = await browser.bookmarks.get(bookmark.id);
               const fullBookmark = browserBookmark[0];
 
+              // Use provider timestamps if available, fallback to browser bookmark date
+              const displayTimestamp =
+                metadataRecord?.updatedAt || // Provider update time
+                metadataRecord?.createdAt || // Provider creation time
+                fullBookmark.dateAdded || // Browser bookmark creation time
+                Date.now(); // Current time as last resort
+
               allItems.push({
                 bookmarkId: bookmark.id,
                 itemId: metadataRecord?.itemId || bookmark.id,
@@ -96,7 +103,7 @@ export function ItemsView() {
                   repository: undefined,
                   labels: undefined,
                 },
-                lastUpdated: fullBookmark.dateAdded || Date.now(),
+                lastUpdated: displayTimestamp,
               });
             }
           }

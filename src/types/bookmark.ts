@@ -59,10 +59,16 @@ export interface BookmarkRecord {
   bookmarkId: string;
   /** Provider ID */
   providerId: string;
-  /** Last update timestamp */
+  /** Last update timestamp (when synced locally) */
   lastUpdated: number;
   /** Hash of the bookmark data for change detection */
   hash?: string;
+  /** Original creation timestamp from provider */
+  createdAt?: number;
+  /** Original update timestamp from provider */
+  updatedAt?: number;
+  /** Last modification timestamp from provider (ISO string) */
+  lastModified?: string;
 }
 
 /**

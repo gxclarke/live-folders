@@ -314,7 +314,35 @@ export class ProviderRegistry {
    * Fetch items from a specific provider
    */
   public async fetchProviderItems(providerId: string) {
-    const provider = this.providers.get(providerId);
+    let provider = this.providers.get(providerId);
+
+    // Self-healing: if provider is missing, try to re-register it
+    if (!provider) {
+      this.logger.warn(
+        `Provider "${providerId}" not found in registry. Attempting to re-register...`,
+      );
+
+      try {
+        if (providerId === "github") {
+          const { GitHubProvider } = await import("../providers/github/github-provider");
+          const githubProvider = new GitHubProvider();
+          this.registerProvider(githubProvider);
+          await githubProvider.initialize();
+          provider = githubProvider;
+          this.logger.info(`Successfully re-registered ${providerId} provider`);
+        } else if (providerId === "jira") {
+          const { JiraProvider } = await import("../providers/jira/jira-provider");
+          const jiraProvider = new JiraProvider();
+          this.registerProvider(jiraProvider);
+          await jiraProvider.initialize();
+          provider = jiraProvider;
+          this.logger.info(`Successfully re-registered ${providerId} provider`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to re-register ${providerId} provider`, error as Error);
+      }
+    }
+
     if (!provider) {
       throw new Error(
         `Provider "${providerId}" is not initialized. Please check your authentication and try reconnecting.`,

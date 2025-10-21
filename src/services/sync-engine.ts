@@ -3,7 +3,7 @@
  * Orchestrates synchronization between providers and bookmarks
  */
 
-import type { BookmarkItem } from "@/types";
+import type { BookmarkItem, BookmarkRecord } from "@/types";
 import { Logger } from "@/utils/logger";
 import { BookmarkManager, type BookmarkNode } from "./bookmark-manager";
 import { NotificationType, notificationService } from "./notification-service";
@@ -134,7 +134,7 @@ export class SyncEngine {
 
       // 5. Apply changes
       const sortOrder = providerData.config?.sortOrder || "alphabetical";
-      await this.applyChanges(providerData.folderId, diff, sortOrder);
+      await this.applyChanges(providerId, providerData.folderId, diff, sortOrder);
 
       // 6. Reorder all bookmarks in the folder according to sort preference
       await this.bookmarkManager.reorderFolder(providerData.folderId, items, sortOrder);
@@ -278,6 +278,7 @@ export class SyncEngine {
    * Apply changes to bookmarks
    */
   public async applyChanges(
+    providerId: string,
     folderId: string,
     diff: SyncDiff,
     sortOrder: "alphabetical" | "created" | "updated" = "alphabetical",
@@ -296,12 +297,51 @@ export class SyncEngine {
         changes: { title: item.newItem.title },
       }));
       await this.bookmarkManager.batchUpdate(updates);
+
+      // Update metadata timestamps for updated items
+      const existingMetadata = await this.storage.getBookmarkMetadata(providerId);
+      for (const updateItem of diff.toUpdate) {
+        const itemId = updateItem.newItem.id;
+        if (existingMetadata[itemId]) {
+          existingMetadata[itemId] = {
+            ...existingMetadata[itemId],
+            lastUpdated: Date.now(),
+            createdAt: updateItem.newItem.createdAt,
+            updatedAt: updateItem.newItem.updatedAt,
+            lastModified: updateItem.newItem.lastModified,
+          };
+        }
+      }
+      await this.storage.saveBookmarkMetadata(providerId, existingMetadata);
     }
 
     // Finally add new items (sorted according to preference)
     if (diff.toAdd.length > 0) {
       logger.debug(`Adding ${diff.toAdd.length} bookmarks (sorted by ${sortOrder})`);
-      await this.bookmarkManager.batchCreate(folderId, diff.toAdd, sortOrder);
+      const bookmarkIds = await this.bookmarkManager.batchCreate(folderId, diff.toAdd, sortOrder);
+
+      // Save bookmark metadata with original timestamps
+      if (bookmarkIds.length === diff.toAdd.length) {
+        const metadata: { [itemId: string]: BookmarkRecord } = {};
+
+        for (let i = 0; i < diff.toAdd.length; i++) {
+          const item = diff.toAdd[i];
+          const bookmarkId = bookmarkIds[i];
+
+          metadata[item.id] = {
+            itemId: item.id,
+            bookmarkId,
+            providerId,
+            lastUpdated: Date.now(),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            lastModified: item.lastModified,
+          };
+        }
+
+        await this.storage.saveBookmarkMetadata(providerId, metadata);
+        logger.debug(`Saved metadata for ${Object.keys(metadata).length} bookmarks`);
+      }
     }
 
     logger.info(

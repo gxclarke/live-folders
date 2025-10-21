@@ -565,20 +565,30 @@ export class JiraProvider implements Provider {
       authType,
     });
 
-    const response = await fetch(endpoint, { headers });
+    try {
+      const response = await fetch(endpoint, { headers });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      this.logger.error("Failed to fetch user info from Jira", {
-        status: response.status,
-        statusText: response.statusText,
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error("Failed to fetch user info from Jira", {
+          status: response.status,
+          statusText: response.statusText,
+          endpoint,
+          errorBody: errorText,
+        });
+        throw new Error(`Failed to fetch user info: ${response.status} ${response.statusText}`);
+      }
+
+      return (await response.json()) as JiraUser;
+    } catch (error) {
+      this.logger.error("Network error fetching user info from Jira", {
         endpoint,
-        errorBody: errorText,
+        error: error instanceof Error ? error.message : String(error),
+        baseUrl: this.baseUrl,
+        instanceType: this.instanceType,
       });
-      throw new Error(`Failed to fetch user info: ${response.status} ${response.statusText}`);
+      throw error;
     }
-
-    return (await response.json()) as JiraUser;
   }
 
   /**
